@@ -20,7 +20,7 @@ dpf_result dpf::create(std::vector<dpf_input_file>& input_files, const FILE_PATH
 }
 
 void dpf::create_async(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context* context) {
-    std::thread t([&input_files, &output_file, context] {
+    std::thread t([input_files, output_file, context] {
         internal_create(input_files, output_file, context);
     });
     t.detach();
