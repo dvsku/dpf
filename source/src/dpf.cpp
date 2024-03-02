@@ -188,9 +188,11 @@ dpf_result internal_extract(const dpf::FILE_PATH input_file, const dpf::DIR_PATH
             fin.read(buffer.data(), u64);
 
             std::filesystem::path filename = std::filesystem::path(output_dir).append(rel_path);
-            std::ofstream         fout(filename, std::ios::binary);
+            std::filesystem::path filedir  = std::filesystem::path(filename).remove_filename();
 
-            std::filesystem::create_directories(filename);
+            std::filesystem::create_directories(filedir);
+
+            std::ofstream fout(filename, std::ios::binary);
 
             if (!fout.is_open()) {
                 if (context)
