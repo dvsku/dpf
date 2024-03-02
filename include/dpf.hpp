@@ -21,7 +21,7 @@ namespace dvsku::dpf {
         dpf& operator=(dpf&&)      = delete;
 
     public:
-        dpf_result create(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context context = {});
-        void create_async(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context context = {});
+        dpf_result create(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context* context = nullptr);
+        void create_async(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context* context = nullptr);
     };
 }
