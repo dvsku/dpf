@@ -182,9 +182,7 @@ dpf_result internal_extract(const dpf::FILE_PATH input_file, const dpf::DIR_PATH
         if (op == dpf_op::add || op == dpf_op::modify) {
             fin.read((char*)&u64, sizeof(size_t));
 
-            buffer.resize(u64);
-            buffer.clear();
-            
+            buffer.resize(u64);         
             fin.read(buffer.data(), u64);
 
             std::filesystem::path filename = std::filesystem::path(output_dir).append(rel_path);
