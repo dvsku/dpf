@@ -9,6 +9,7 @@ using namespace dvsku::dpf;
 // INTERNAL
 
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_file, dpf_context* context);
+static dpf_result internal_extract(const dpf::FILE_PATH input_file, const dpf::DIR_PATH output_dir, dpf_context* context);
 
 static void internal_make_relative(dpf_input_file& input_file, const dpf::DIR_PATH& root);
 
@@ -22,6 +23,17 @@ dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& output_file, dp
 void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& output_file, dpf_context* context) {
     std::thread t([input_files, output_file, context] {
         internal_create(input_files, output_file, context);
+    });
+    t.detach();
+}
+
+dpf_result dpf::extract(const FILE_PATH& input_file, const DIR_PATH& output_dir, dpf_context* context) {
+    return internal_extract(input_file, output_dir, context);
+}
+
+void dpf::extract_async(const FILE_PATH& input_file, const DIR_PATH& output_dir, dpf_context* context) {
+    std::thread t([input_file, output_dir, context] {
+        internal_extract(input_file, output_dir, context);
     });
     t.detach();
 }
@@ -111,6 +123,89 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
     }
 
     fout.close();
+
+    if (context)
+        context->invoke_finish(result);
+
+    return result;
+}
+
+dpf_result internal_extract(const dpf::FILE_PATH input_file, const dpf::DIR_PATH output_dir, dpf_context* context) {
+    dpf_result result;
+
+    size_t file_count = 0U;
+
+    std::ifstream fin;
+    fin.open(input_file, std::ios::binary);
+
+    if (!fin.is_open()) {
+        if (context)
+            context->invoke_error(result);
+
+        return result;
+    }
+
+    char magic[4] = "";
+    fin.read(magic, 4);
+
+    if (magic[0] != 'D' || magic[1] != 'P' || magic[2] != 'F' || magic[3] != ' ') {
+        if (context)
+            context->invoke_error(result);
+
+        return result;
+    }
+
+    fin.read((char*)&file_count, sizeof(size_t));
+
+    float             prog_change = 100.0f / file_count;
+    std::vector<char> buffer;
+    size_t            u64         = 0U;
+
+    for (size_t i = 0; i < file_count; i++) {
+        std::string rel_path = "";
+        dpf_op      op       = dpf_op::undefined;
+
+        fin.read((char*)&op, sizeof(dpf_op));
+
+        if (op == dpf_op::undefined) {
+            if (context)
+                context->invoke_error(result);
+
+            return result;
+        }
+
+        fin.read((char*)&u64, sizeof(size_t));
+
+        rel_path.resize(u64);
+        fin.read(rel_path.data(), u64);
+
+        if (op == dpf_op::add || op == dpf_op::modify) {
+            fin.read((char*)&u64, sizeof(size_t));
+
+            buffer.resize(u64);
+            buffer.clear();
+            
+            fin.read(buffer.data(), u64);
+
+            std::filesystem::path filename = std::filesystem::path(output_dir).append(rel_path);
+            std::ofstream         fout(filename, std::ios::binary);
+
+            if (!fout.is_open()) {
+                if (context)
+                    context->invoke_error(result);
+
+                return result;
+            }
+
+            fout.write(buffer.data(), buffer.size());
+            fout.close();
+        }
+
+        if (context)
+            context->invoke_update(prog_change);
+    }
+    
+    fin.close();
 
     if (context)
         context->invoke_finish(result);
