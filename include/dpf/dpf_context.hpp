@@ -22,8 +22,6 @@ namespace dvsku::dpf {
         pre_process_t     pre_process_fn  = nullptr;
         bool*             cancel          = nullptr;
 
-        std::filesystem::path base_path = "";
-
         void invoke_start();
         void invoke_finish(dpf_result& result);
         void invoke_update(float progress);

@@ -8,18 +8,18 @@ using namespace dvsku::dpf;
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-static dpf_result internal_create(std::vector<dpf_input_file> input_files, const dpf::FILE_PATH output_file, dpf_context* context);
+static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_file, dpf_context* context);
 
 static void internal_make_relative(dpf_input_file& input_file, const dpf::DIR_PATH& root);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
-dpf_result dpf::create(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context* context) {
+dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& output_file, dpf_context* context) {
     return internal_create(input_files, output_file, context);
 }
 
-void dpf::create_async(std::vector<dpf_input_file>& input_files, const FILE_PATH& output_file, dpf_context* context) {
+void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& output_file, dpf_context* context) {
     std::thread t([input_files, output_file, context] {
         internal_create(input_files, output_file, context);
     });
@@ -29,10 +29,10 @@ void dpf::create_async(std::vector<dpf_input_file>& input_files, const FILE_PATH
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL IMPL
 
-dpf_result internal_create(std::vector<dpf_input_file> input_files, const dpf::FILE_PATH output_file, dpf_context* context) {
+dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_file, dpf_context* context) {
     dpf_result result;
-    float      prog_change = 100.0f / input_files.size();
-    size_t     file_count  = input_files.size();
+    size_t     file_count  = input_files.files.size();
+    float      prog_change = 100.0f / file_count;
     
     if (context)
         context->invoke_start();
@@ -52,7 +52,7 @@ dpf_result internal_create(std::vector<dpf_input_file> input_files, const dpf::F
 
     std::vector<char> buffer;
     
-    for (dpf_input_file& input_file : input_files) {
+    for (dpf_input_file& input_file : input_files.files) {
         if (context && context->invoke_cancel()) {
 
             return result;
@@ -89,8 +89,8 @@ dpf_result internal_create(std::vector<dpf_input_file> input_files, const dpf::F
         if (context)
             context->invoke_pre_process(input_file, buffer);
 
-        if (context && context->base_path != "")
-            internal_make_relative(input_file, context->base_path);
+        if (input_files.base_path != "")
+            internal_make_relative(input_file, input_files.base_path);
 
         std::string path = input_file.path.string();
         size_t      u64  = path.size();
