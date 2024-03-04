@@ -2,12 +2,13 @@
 
 PROJECT(dpf)
 
-SET(DPF_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
+SET(DPF_INCLUDE_DIR   "${PROJECT_SOURCE_DIR}/include")
+SET(DPF_LIBRARIES_DIR "${PROJECT_SOURCE_DIR}/libraries")
 
 IF(WIN32)
-	IF (MSVC)
-		ADD_SUBDIRECTORY("source")
-	ELSE()
-		MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} currently not supported.")
-	ENDIF()
+    IF (MSVC)
+        ADD_SUBDIRECTORY("source")
+    ELSE()
+        MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} currently not supported.")
+    ENDIF()
 ENDIF()

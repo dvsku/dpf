@@ -1,25 +1,26 @@
 ﻿FILE(GLOB_RECURSE DPF_HEADERS CONFIGURE_DEPENDS 
-	"${DPF_INCLUDE_DIR}/*.hpp"
+    "${DPF_INCLUDE_DIR}/*.hpp"
 )
 
 ADD_LIBRARY(dpf STATIC
-	${DPF_HEADERS}
-	"src/dpf.cpp"
-	"src/dpf/dpf_context.cpp"
+    ${DPF_HEADERS}
+    "src/dpf.cpp"
+    "src/dpf/dpf_context.cpp"
 )
 
 TARGET_INCLUDE_DIRECTORIES(dpf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 TARGET_INCLUDE_DIRECTORIES(dpf PRIVATE "${DPF_INCLUDE_DIR}")
+TARGET_INCLUDE_DIRECTORIES(dpf PRIVATE "${DPF_LIBRARIES_DIR}")
 
 IF (MSVC)
-	TARGET_COMPILE_OPTIONS(dpf PRIVATE
-		$<$<CONFIG:Debug>:
-			$<$<CXX_COMPILER_ID:MSVC>: /std:c++20>
-		>
-		$<$<CONFIG:Release>:
-			$<$<CXX_COMPILER_ID:MSVC>: /std:c++20 /DNDEBUG>
-		>
-	)
+    TARGET_COMPILE_OPTIONS(dpf PRIVATE
+        $<$<CONFIG:Debug>:
+            $<$<CXX_COMPILER_ID:MSVC>: /std:c++20>
+        >
+        $<$<CONFIG:Release>:
+            $<$<CXX_COMPILER_ID:MSVC>: /std:c++20 /DNDEBUG>
+        >
+    )
 
     TARGET_COMPILE_DEFINITIONS(dpf PRIVATE -D_WINDOWS)
     TARGET_COMPILE_DEFINITIONS(dpf PRIVATE -D_CRT_SECURE_NO_WARNINGS)
