@@ -53,6 +53,9 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
     fout.open(output_file, std::ios::binary);
 
     if (!fout.is_open()) {
+        result.status  = dpf_status::error;
+        result.message = "Failed to open output file.";
+        
         if (context)
             context->invoke_error(result);
 
@@ -66,7 +69,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
     
     for (dpf_input_file& input_file : input_files.files) {
         if (context && context->invoke_cancel()) {
-
+            result.status = dpf_status::cancelled;
             return result;
         }
 
@@ -76,6 +79,9 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
             std::ifstream fin(input_file.path, std::ios::binary);
             
             if (!fin.is_open()) {
+                result.status  = dpf_status::error;
+                result.message = "Failed to open input file `" + input_file.path.string() + "`.";
+
                 if (context)
                     context->invoke_error(result);
 
@@ -91,6 +97,9 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
             fin.read(buffer.data(), file_size);
 
             if (fin.bad()) {
+                result.status  = dpf_status::error;
+                result.message = "Failed to read input file `" + input_file.path.string() + "`.";
+
                 if (context)
                     context->invoke_error(result);
 
@@ -124,6 +133,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
 
     fout.close();
 
+    result.status = dpf_status::finished;
     if (context)
         context->invoke_finish(result);
 

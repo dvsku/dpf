@@ -30,6 +30,7 @@ void dpf_context::invoke_pre_process(dpf_input_file& file, std::vector<char>& bu
 bool dpf_context::invoke_cancel() {
     if (cancel && *cancel) {
         dpf_result result;
+        result.status = dpf_status::cancelled;
 
         invoke_finish(result);
         return true;
