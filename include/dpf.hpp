@@ -24,7 +24,7 @@ namespace dvsku::dpf {
         dpf_result create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
         void create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
 
-        dpf_result extract(const FILE_PATH& input_file, const DIR_PATH& output_dir, dpf_context* context = nullptr);
-        void extract_async(const FILE_PATH& input_file, const DIR_PATH& output_dir, dpf_context* context = nullptr);
+        dpf_result patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
+        void patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
     };
 }
