@@ -1,6 +1,12 @@
 ﻿CMAKE_MINIMUM_REQUIRED (VERSION 3.14)
 
+OPTION(DPF_TESTS "Build dpf tests" OFF)
+
 PROJECT(dpf)
+
+IF(DPF_TESTS)
+    ENABLE_TESTING()
+ENDIF()
 
 SET(DPF_INCLUDE_DIR   "${PROJECT_SOURCE_DIR}/include")
 SET(DPF_LIBRARIES_DIR "${PROJECT_SOURCE_DIR}/libraries")
@@ -8,6 +14,10 @@ SET(DPF_LIBRARIES_DIR "${PROJECT_SOURCE_DIR}/libraries")
 IF(WIN32)
     IF (MSVC)
         ADD_SUBDIRECTORY("source")
+
+        IF(DPF_TESTS)
+            ADD_SUBDIRECTORY("tests")
+        ENDIF()
     ELSE()
         MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER_ID} currently not supported.")
     ENDIF()
