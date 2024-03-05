@@ -8,21 +8,21 @@ using namespace dvsku::dpf;
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_file, dpf_context* context);
 static dpf_result internal_extract(const dpf::FILE_PATH input_file, const dpf::DIR_PATH output_dir, dpf_context* context);
+static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context);
 
 static void internal_make_relative(dpf_input_file& input_file, const dpf::DIR_PATH& root);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
-dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& output_file, dpf_context* context) {
-    return internal_create(input_files, output_file, context);
+dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
+    return internal_create(input_files, dpf_file, context);
 }
 
-void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& output_file, dpf_context* context) {
-    std::thread t([input_files, output_file, context] {
-        internal_create(input_files, output_file, context);
+void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
+    std::thread t([input_files, dpf_file, context] {
+        internal_create(input_files, dpf_file, context);
     });
     t.detach();
 }
@@ -41,7 +41,7 @@ void dpf::extract_async(const FILE_PATH& input_file, const DIR_PATH& output_dir,
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL IMPL
 
-dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_file, dpf_context* context) {
+dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context) {
     dpf_result result;
     size_t     file_count  = input_files.files.size();
     float      prog_change = 100.0f / file_count;
@@ -50,11 +50,11 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH output_f
         context->invoke_start();
 
     std::ofstream fout;
-    fout.open(output_file, std::ios::binary);
+    fout.open(dpf_file, std::ios::binary);
 
     if (!fout.is_open()) {
         result.status  = dpf_status::error;
-        result.message = "Failed to open output file.";
+        result.message = "Failed to open `" + dpf_file.string() + "` file.";
         
         if (context)
             context->invoke_error(result);
