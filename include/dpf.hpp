@@ -2,7 +2,7 @@
 
 #include "dpf\dpf_context.hpp"
 #include "dpf\dpf_result.hpp"
-#include "dpf\dpf_input_file.hpp"
+#include "dpf\dpf_inputs.hpp"
 
 #include <filesystem>
 

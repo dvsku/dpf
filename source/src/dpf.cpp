@@ -11,7 +11,7 @@ using namespace dvsku::dpf;
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context);
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context);
 
-static void internal_make_relative(dpf_input_file& input_file, const dpf::DIR_PATH& root);
+static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
@@ -67,7 +67,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
     std::vector<char> buffer;
     
-    for (dpf_input_file& input_file : input_files.files) {
+    for (dpf_file_mod& input_file : input_files.files) {
         if (context && context->invoke_cancel()) {
             result.status = dpf_status::cancelled;
             return result;
@@ -302,6 +302,6 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
     return result;
 }
 
-void internal_make_relative(dpf_input_file& input_file, const dpf::DIR_PATH& root) {
-    input_file.path = std::filesystem::relative(input_file.path, root);
+void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root) {
+    file_mod.path = std::filesystem::relative(file_mod.path, root);
 }

@@ -4,6 +4,9 @@
 #include <filesystem>
 
 namespace dvsku::dpf {
+    /// <summary>
+    /// File modification operation
+    /// </summary>
     enum class dpf_op : unsigned char {
         undefined,
         add,
@@ -11,13 +14,11 @@ namespace dvsku::dpf {
         modify
     };
 
-    struct dpf_input_file {
+    /// <summary>
+    /// A file modification
+    /// </summary>
+    struct dpf_file_mod {
         std::filesystem::path path = "";
         dpf_op                op   = dpf_op::undefined;
-    };
-
-    struct dpf_inputs {
-        std::filesystem::path       base_path = "";
-        std::vector<dpf_input_file> files;
     };
 }
