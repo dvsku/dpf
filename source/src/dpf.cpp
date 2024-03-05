@@ -2,6 +2,7 @@
 
 #include <thread>
 #include <fstream>
+#include <miniz\miniz.h>
 
 using namespace dvsku::dpf;
 
@@ -121,10 +122,38 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         fout.write(path.data(), u64);
         
         if (input_file.op == dpf_op::add || input_file.op == dpf_op::modify) {
-            u64 = buffer.size();
+            mz_ulong          max_compressed_size = mz_compressBound(static_cast<mz_ulong>(buffer.size()));
+            mz_ulong          compressed_size     = max_compressed_size;
+            std::vector<char> buffer_compress(max_compressed_size);
 
-            fout.write((char*)&u64, sizeof(size_t));
-            fout.write(buffer.data(), u64);
+            int code = mz_compress(reinterpret_cast<unsigned char*>(buffer_compress.data()), &compressed_size, 
+                reinterpret_cast<const unsigned char*>(buffer.data()), static_cast<mz_ulong>(buffer.size()));
+
+            if (code != MZ_OK) {
+                result.status  = dpf_status::error;
+                result.message = "Failed to compress input file `" + input_file.path.string() + "`.";
+
+                if (context)
+                    context->invoke_error(result);
+
+                return result;
+            }
+
+            buffer_compress.resize(static_cast<size_t>(compressed_size));
+
+            // Write decompressed size
+
+            u64 = buffer.size();
+            fout.write((char*)&u64, sizeof(u64));
+
+            // Write compressed size
+
+            u64 = buffer_compress.size();
+            fout.write((char*)&u64, sizeof(u64));
+
+            // Write content
+
+            fout.write(buffer_compress.data(), u64);
         }
 
         if (context)
@@ -220,6 +249,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         // Skip file content
 
         if (op == dpf_op::add || op == dpf_op::modify) {
+            fin.seekg(sizeof(size_t), std::ios_base::cur);
             fin.read((char*)&u64, sizeof(size_t));
             fin.seekg(u64, std::ios_base::cur);
         }
@@ -232,7 +262,8 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
     fin.seekg(4 + sizeof(size_t), std::ios_base::beg);
 
-    std::vector<char> buffer;
+    std::vector<char> compressed_buffer;
+    std::vector<char> decompressed_buffer;
 
     for (size_t i = 0; i < file_count; i++) {
         std::string relative_file_path = "";
@@ -254,10 +285,16 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         std::filesystem::path filedir  = std::filesystem::path(filename).remove_filename();
 
         if (op == dpf_op::add || op == dpf_op::modify) {
-            fin.read((char*)&u64, sizeof(size_t));
+            size_t decompressed_size = 0U;
+            size_t compressed_size   = 0U;
 
-            buffer.resize(u64);
-            fin.read(buffer.data(), u64);
+            fin.read((char*)&decompressed_size, sizeof(decompressed_size));
+            fin.read((char*)&compressed_size,   sizeof(compressed_size));
+
+            mz_ulong real_decompressed_size = static_cast<mz_ulong>(decompressed_size);
+
+            compressed_buffer.resize(compressed_size);
+            fin.read(compressed_buffer.data(), compressed_size);
 
             std::filesystem::create_directories(filedir);
 
@@ -272,15 +309,30 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 return result;
             }
 
+            decompressed_buffer.resize(decompressed_size);
+
+            int code = mz_uncompress(reinterpret_cast<unsigned char*>(decompressed_buffer.data()), &real_decompressed_size,
+                reinterpret_cast<const unsigned char*>(compressed_buffer.data()), static_cast<mz_ulong>(compressed_size));
+
+            if (code != MZ_OK || decompressed_size != real_decompressed_size) {
+                result.status  = dpf_status::error;
+                result.message = "Failed to decompress `" + filename.string() + "`.";
+
+                if (context)
+                    context->invoke_error(result);
+
+                return result;
+            }
+
             if (context) {
                 dpf_file_mod file_mod;
                 file_mod.path = filename;
                 file_mod.op   = op;
 
-                context->invoke_buf_process(file_mod, buffer);
+                context->invoke_buf_process(file_mod, decompressed_buffer);
             }
 
-            fout.write(buffer.data(), buffer.size());
+            fout.write(decompressed_buffer.data(), decompressed_buffer.size());
             fout.close();
         }
         else if (op == dpf_op::remove) {
