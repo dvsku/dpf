@@ -272,6 +272,14 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 return result;
             }
 
+            if (context) {
+                dpf_file_mod file_mod;
+                file_mod.path = filename;
+                file_mod.op   = op;
+
+                context->invoke_buf_process(file_mod, buffer);
+            }
+
             fout.write(buffer.data(), buffer.size());
             fout.close();
         }
