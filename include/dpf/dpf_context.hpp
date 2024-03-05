@@ -8,6 +8,9 @@
 #include <vector>
 
 namespace dvsku::dpf {
+    /// <summary>
+    /// dpf context object
+    /// </summary>
     struct dpf_context {
         using start_callback_t  = std::function<void()>;
         using finish_callback_t = std::function<void(dpf_result)>;
