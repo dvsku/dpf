@@ -108,7 +108,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         }
 
         if (context)
-            context->invoke_pre_process(input_file, buffer);
+            context->invoke_buf_process(input_file, buffer);
 
         if (input_files.base_path != "")
             internal_make_relative(input_file, input_files.base_path);

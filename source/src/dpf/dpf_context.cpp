@@ -22,9 +22,9 @@ void dpf_context::invoke_error(dpf_result& result) {
         callback_error(result);
 }
 
-void dpf_context::invoke_pre_process(dpf_input_file& file, std::vector<char>& buffer) {
-    if (pre_process_fn)
-        pre_process_fn(file, buffer);
+void dpf_context::invoke_buf_process(dpf_input_file& file, std::vector<char>& buffer) {
+    if (buf_process_fn)
+        buf_process_fn(file, buffer);
 }
 
 bool dpf_context::invoke_cancel() {
