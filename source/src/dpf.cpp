@@ -18,23 +18,95 @@ static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& 
 // PUBLIC
 
 dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
-    return internal_create(input_files, dpf_file, context);
+    try {
+        return internal_create(input_files, dpf_file, context);
+    }
+    catch (const std::exception& e) {
+        dpf_result result;
+        result.status  = dpf_status::error;
+        result.message = e.what();
+
+        return result;
+    }
+    catch (...) {
+        dpf_result result;
+        result.status  = dpf_status::error;
+        result.message = "Critical failure.";
+
+        return result;
+    }
 }
 
 void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
     std::thread t([input_files, dpf_file, context] {
-        internal_create(input_files, dpf_file, context);
+        try {
+            internal_create(input_files, dpf_file, context);
+        }
+        catch (const std::exception& e) {
+            if (context) {
+                dpf_result result;
+                result.status = dpf_status::error;
+                result.message = e.what();
+
+                context->invoke_error(result);
+            }
+        }
+        catch (...) {
+            if (context) {
+                dpf_result result;
+                result.status = dpf_status::error;
+                result.message = "Critical failure.";
+
+                context->invoke_error(result);
+            }
+        }
     });
     t.detach();
 }
 
 dpf_result dpf::patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context) {
-    return internal_patch(dpf_file, patch_dir, context);
+    try {
+        return internal_patch(dpf_file, patch_dir, context);
+    }
+    catch (const std::exception& e) {
+        dpf_result result;
+        result.status = dpf_status::error;
+        result.message = e.what();
+
+        return result;
+    }
+    catch (...) {
+        dpf_result result;
+        result.status = dpf_status::error;
+        result.message = "Critical failure.";
+
+        return result;
+    }
 }
 
 void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context) {
     std::thread t([dpf_file, patch_dir, context] {
-        internal_patch(dpf_file, patch_dir, context);
+        try {
+            internal_patch(dpf_file, patch_dir, context);
+        }
+        catch (const std::exception& e) {
+            if (context) {
+                dpf_result result;
+                result.status  = dpf_status::error;
+                result.message = e.what();
+
+                context->invoke_error(result);
+            }    
+        }
+        catch (...) {
+            if (context) {
+                dpf_result result;
+                result.status  = dpf_status::error;
+                result.message = "Critical failure.";
+
+                context->invoke_error(result);
+            }
+        }
     });
     t.detach();
 }
