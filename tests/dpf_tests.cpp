@@ -27,6 +27,35 @@ bool compare_files(const std::string& p1, const std::string& p2) {
         std::istreambuf_iterator<char>(f2.rdbuf()));
 }
 
+bool copy_directory(const std::filesystem::path& source, const std::filesystem::path& destination) {
+    try {
+        if (std::filesystem::exists(source) && std::filesystem::is_directory(source)) {
+            if (!std::filesystem::exists(destination)) {
+                std::filesystem::create_directories(destination);
+            }
+
+            for (const auto& entry : std::filesystem::directory_iterator(source)) {
+                std::filesystem::path current_destination = destination / entry.path().filename();
+
+                if (std::filesystem::is_directory(entry.status())) {
+                    copy_directory(entry.path(), current_destination);
+                }
+                else {
+                    std::filesystem::copy(entry.path(), current_destination, std::filesystem::copy_options::overwrite_existing);
+                }
+            }
+        }
+        else {
+            return false;
+        }
+    }
+    catch (...) {
+        return false;
+    }
+
+    return true;
+}
+
 int create_and_extract(const std::string& base) {
     dpf dpf;
     
@@ -41,7 +70,13 @@ int create_and_extract(const std::string& base) {
         { std::string(base) + std::string("/tests/resources/patch/subfolder/2.txt"), dpf_op::modify }
     );
 
+    inputs.files.push_back(
+        { std::string(base) + std::string("/tests/resources/patch/subfolder/3.txt"), dpf_op::remove }
+    );
+
     try {
+        
+
         auto result = dpf.create(inputs, "./patch.dpf");
         bool valid  = result.status == dpf_status::finished;
         
@@ -49,24 +84,28 @@ int create_and_extract(const std::string& base) {
             std::remove("./patch.dpf");
 
         ASSERT(valid);
+        ASSERT(copy_directory(std::string(base) + std::string("/tests/resources/original/"), "./to_patch/"));
         
-        result = dpf.extract("./patch.dpf", "./extract/");
+        result = dpf.patch("./patch.dpf", "./to_patch/");
         valid  = result.status == dpf_status::finished;
 
-        if (!valid)
+        if (!valid) {
             std::remove("./patch.dpf");
-
-        //ASSERT(valid);
-        std::remove("./patch.dpf");
-
-        valid = compare_files("./extract/1.txt",           std::string(base) + std::string("/tests/resources/patch/1.txt")) &&
-                compare_files("./extract/subfolder/2.txt", std::string(base) + std::string("/tests/resources/patch/subfolder/2.txt"));
-
-        if (!valid)
-            std::filesystem::remove_all("./extract");
+            std::filesystem::remove_all("./to_patch/");
+        }
 
         ASSERT(valid);
-        std::filesystem::remove_all("./extract");
+        std::remove("./patch.dpf");
+
+        valid = compare_files("./to_patch/1.txt",           std::string(base) + std::string("/tests/resources/patch/1.txt")) &&
+                compare_files("./to_patch/subfolder/2.txt", std::string(base) + std::string("/tests/resources/patch/subfolder/2.txt")) &&
+                !std::filesystem::exists("./to_patch/subfolder/3.txt");
+
+        if (!valid)
+            std::filesystem::remove_all("./to_patch/");
+
+        ASSERT(valid);
+        std::filesystem::remove_all("./to_patch/");
     }
     catch (...) { return 1; }
 
