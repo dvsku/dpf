@@ -3,7 +3,9 @@
 )
 
 ADD_LIBRARY(dpf STATIC
-    ${DPF_HEADERS}
+    "${DPF_LIBRARIES_DIR}/miniz/miniz.c"
+
+    "${DPF_HEADERS}"
     "src/dpf.cpp"
     "src/dpf/dpf_context.cpp"
 )
