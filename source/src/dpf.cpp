@@ -14,7 +14,7 @@ static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH d
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context);
 
 static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
-static void internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
+static bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
@@ -466,16 +466,19 @@ void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root) {
     file_mod.path = std::filesystem::relative(file_mod.path, root);
 }
 
-void internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
+bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
     std::ifstream fin;
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open())
-        return;
+        return false;
 
     fin.seekg(0, std::ios::end);
     std::streamsize file_size = fin.tellg();
     fin.seekg(0, std::ios::beg);
+
+    if (file_size <= 20)
+        return false;
 
     file_size -= 20;
     fin.seekg(20, std::ios::beg);
@@ -488,4 +491,6 @@ void internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
     MD5 md5_digest;
     md5_digest.add(buffer.data(), buffer.size());
     md5_digest.getHash(md5);
+
+    return true;
 }
