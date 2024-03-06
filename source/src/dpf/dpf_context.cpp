@@ -22,7 +22,7 @@ void dpf_context::invoke_error(dpf_result& result) {
         callback_error(result);
 }
 
-void dpf_context::invoke_buf_process(dpf_file_mod& file, std::vector<char>& buffer) {
+void dpf_context::invoke_buf_process(const dpf_file_mod& file, std::vector<char>& buffer) {
     if (buf_process_fn)
         buf_process_fn(file, buffer);
 }
