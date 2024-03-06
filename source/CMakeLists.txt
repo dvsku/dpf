@@ -8,6 +8,7 @@ ADD_LIBRARY(dpf STATIC
     "${DPF_HEADERS}"
     "src/dpf.cpp"
     "src/dpf/dpf_context.cpp"
+    "src/md5/md5.cpp"
 )
 
 TARGET_INCLUDE_DIRECTORIES(dpf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
