@@ -75,8 +75,6 @@ int create_and_extract(const std::string& base) {
     );
 
     try {
-        
-
         auto result = dpf.create(inputs, "./patch.dpf");
         bool valid  = result.status == dpf_status::finished;
         
@@ -84,6 +82,7 @@ int create_and_extract(const std::string& base) {
             std::remove("./patch.dpf");
 
         ASSERT(valid);
+        ASSERT(dpf.check_checksum("./patch.dpf"));
         ASSERT(copy_directory(std::string(base) + std::string("/tests/resources/original/"), "./to_patch/"));
         
         result = dpf.patch("./patch.dpf", "./to_patch/");
