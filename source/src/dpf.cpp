@@ -3,6 +3,7 @@
 #include <thread>
 #include <fstream>
 #include <miniz\miniz.h>
+#include <md5\md5.hpp>
 
 using namespace dvsku::dpf;
 
@@ -13,6 +14,7 @@ static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH d
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context);
 
 static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
+static void internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
@@ -118,6 +120,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     dpf_result result;
     size_t     file_count  = input_files.files.size();
     float      prog_change = 100.0f / file_count;
+    char       md5[16]     = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
     if (context)
         context->invoke_start();
@@ -136,6 +139,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     }
 
     fout.write("DPF ", 4);
+    fout.write(md5, 16);
     fout.write((char*)&file_count, sizeof(size_t));
 
     std::vector<char> buffer;
@@ -234,6 +238,29 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
     fout.close();
 
+    // Create checksum
+
+    internal_get_md5(dpf_file, (unsigned char*)md5);
+
+    // Write checksum
+
+    std::fstream fstream; 
+    fstream.open(dpf_file, std::ios::binary | std::ios::in | std::ios::out);
+
+    if (!fstream.is_open()) {
+        result.status = dpf_status::error;
+        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+
+        if (context)
+            context->invoke_error(result);
+
+        return result;
+    }
+
+    fstream.seekp(4, std::ios::beg);
+    fstream.write(md5, 16);
+    fstream.close();
+
     result.status = dpf_status::finished;
     if (context)
         context->invoke_finish(result);
@@ -272,6 +299,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         return result;
     }
 
+    fin.seekg(16, std::ios_base::cur);
     fin.read((char*)&file_count, sizeof(size_t));
 
     float  prog_change_x = 15.0f / file_count;
@@ -332,7 +360,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
             context->invoke_update(prog_change_x);
     }
 
-    fin.seekg(4 + sizeof(size_t), std::ios_base::beg);
+    fin.seekg(4 + sizeof(size_t) + 16, std::ios_base::beg);
 
     std::vector<char> compressed_buffer;
     std::vector<char> decompressed_buffer;
@@ -436,4 +464,28 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
 void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root) {
     file_mod.path = std::filesystem::relative(file_mod.path, root);
+}
+
+void internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
+    std::ifstream fin;
+    fin.open(dpf_file, std::ios::binary);
+
+    if (!fin.is_open())
+        return;
+
+    fin.seekg(0, std::ios::end);
+    std::streamsize file_size = fin.tellg();
+    fin.seekg(0, std::ios::beg);
+
+    file_size -= 20;
+    fin.seekg(20, std::ios::beg);
+
+    std::vector<char> buffer;
+    buffer.resize(file_size);
+
+    fin.read(buffer.data(), file_size);
+
+    MD5 md5_digest;
+    md5_digest.add(buffer.data(), buffer.size());
+    md5_digest.getHash(md5);
 }
