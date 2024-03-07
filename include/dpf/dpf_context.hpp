@@ -16,7 +16,7 @@ namespace dvsku::dpf {
         using finish_callback_t = std::function<void(dpf_result)>;
         using update_callback_t = std::function<void(float)>;
         using error_callback_t  = std::function<void(dpf_result)>;
-        using buf_process_t     = std::function<void(const dpf_file_mod& file, std::vector<char>& buffer)>;
+        using buf_process_t     = std::function<void(const dpf_file_mod& file, std::vector<uint8_t>& buffer)>;
 
         start_callback_t  callback_start  = nullptr;
         finish_callback_t callback_finish = nullptr;
@@ -29,7 +29,7 @@ namespace dvsku::dpf {
         void invoke_finish(dpf_result& result);
         void invoke_update(float progress);
         void invoke_error(dpf_result& result);
-        void invoke_buf_process(const dpf_file_mod& file, std::vector<char>& buffer);
+        void invoke_buf_process(const dpf_file_mod& file, std::vector<uint8_t>& buffer);
 
         bool invoke_cancel();
     };

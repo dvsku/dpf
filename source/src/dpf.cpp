@@ -178,7 +178,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     fout.write(md5, 16);
     fout.write((char*)&file_count, sizeof(size_t));
 
-    std::vector<char> buffer;
+    std::vector<uint8_t> buffer;
     
     for (dpf_file_mod& input_file : input_files.files) {
         if (context && context->invoke_cancel()) {
@@ -207,7 +207,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
             buffer.resize(file_size);
 
-            fin.read(buffer.data(), file_size);
+            fin.read((char*)buffer.data(), file_size);
 
             if (fin.bad()) {
                 result.status  = dpf_status::error;
@@ -234,12 +234,12 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         fout.write(path.data(), u64);
         
         if (input_file.op == dpf_op::add || input_file.op == dpf_op::modify) {
-            mz_ulong          max_compressed_size = mz_compressBound(static_cast<mz_ulong>(buffer.size()));
-            mz_ulong          compressed_size     = max_compressed_size;
-            std::vector<char> buffer_compress(max_compressed_size);
+            mz_ulong             max_compressed_size = mz_compressBound(static_cast<mz_ulong>(buffer.size()));
+            mz_ulong             compressed_size     = max_compressed_size;
+            std::vector<uint8_t> buffer_compress(max_compressed_size);
 
-            int code = mz_compress(reinterpret_cast<unsigned char*>(buffer_compress.data()), &compressed_size, 
-                reinterpret_cast<const unsigned char*>(buffer.data()), static_cast<mz_ulong>(buffer.size()));
+            int code = mz_compress(buffer_compress.data(), &compressed_size, buffer.data(), 
+                static_cast<mz_ulong>(buffer.size()));
 
             if (code != MZ_OK) {
                 result.status  = dpf_status::error;
@@ -265,7 +265,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
             // Write content
 
-            fout.write(buffer_compress.data(), u64);
+            fout.write((char*)buffer_compress.data(), u64);
         }
 
         if (context)
@@ -398,8 +398,8 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
     fin.seekg(4 + sizeof(size_t) + 16, std::ios_base::beg);
 
-    std::vector<char> compressed_buffer;
-    std::vector<char> decompressed_buffer;
+    std::vector<uint8_t> compressed_buffer;
+    std::vector<uint8_t> decompressed_buffer;
 
     for (size_t i = 0; i < file_count; i++) {
         std::string relative_file_path = "";
@@ -430,7 +430,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
             mz_ulong real_decompressed_size = static_cast<mz_ulong>(decompressed_size);
 
             compressed_buffer.resize(compressed_size);
-            fin.read(compressed_buffer.data(), compressed_size);
+            fin.read((char*)compressed_buffer.data(), compressed_size);
 
             std::filesystem::create_directories(filedir);
 
@@ -447,8 +447,8 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
             decompressed_buffer.resize(decompressed_size);
 
-            int code = mz_uncompress(reinterpret_cast<unsigned char*>(decompressed_buffer.data()), &real_decompressed_size,
-                reinterpret_cast<const unsigned char*>(compressed_buffer.data()), static_cast<mz_ulong>(compressed_size));
+            int code = mz_uncompress(decompressed_buffer.data(), &real_decompressed_size, compressed_buffer.data(), 
+                static_cast<mz_ulong>(compressed_size));
 
             if (code != MZ_OK || decompressed_size != real_decompressed_size) {
                 result.status  = dpf_status::error;
@@ -468,7 +468,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 context->invoke_buf_process(file_mod, decompressed_buffer);
             }
 
-            fout.write(decompressed_buffer.data(), decompressed_buffer.size());
+            fout.write((char*)decompressed_buffer.data(), decompressed_buffer.size());
             fout.close();
         }
         else if (op == dpf_op::remove) {
