@@ -220,8 +220,19 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
             }
         }
 
-        if (context)
-            context->invoke_buf_process(input_file, buffer);
+        if (context) {
+            dpf_result process_result = context->invoke_buf_process(input_file, buffer);
+            
+            if (process_result.status != dpf_status::finished) {
+                result.status  = dpf_status::error;
+                result.message = "Failed to process buffer of `" + input_file.path.string() + "`. | " + process_result.message;
+
+                if (context)
+                    context->invoke_error(result);
+
+                return result;
+            }
+        }
 
         if (input_files.base_path != "")
             internal_make_relative(input_file, input_files.base_path);
@@ -284,7 +295,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     fstream.open(dpf_file, std::ios::binary | std::ios::in | std::ios::out);
 
     if (!fstream.is_open()) {
-        result.status = dpf_status::error;
+        result.status  = dpf_status::error;
         result.message = "Failed to open `" + dpf_file.string() + "` file.";
 
         if (context)
@@ -465,7 +476,17 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 file_mod.path = filename;
                 file_mod.op   = op;
 
-                context->invoke_buf_process(file_mod, decompressed_buffer);
+                dpf_result process_result = context->invoke_buf_process(file_mod, decompressed_buffer);
+
+                if (process_result.status != dpf_status::finished) {
+                    result.status  = dpf_status::error;
+                    result.message = "Failed to process buffer of `" + filename.string() + "`. | " + process_result.message;
+
+                    if (context)
+                        context->invoke_error(result);
+
+                    return result;
+                }
             }
 
             fout.write((char*)decompressed_buffer.data(), decompressed_buffer.size());
