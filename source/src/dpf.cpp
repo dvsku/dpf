@@ -381,15 +381,14 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
 dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context) {
     dpf_result result;
-
-    size_t file_count = 0U;
+    dpf_header header;
 
     std::ifstream fin;
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open()) {
         result.status  = dpf_status::error;
-        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+        result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
 
         if (context)
             context->invoke_error(result);
@@ -397,122 +396,38 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         return result;
     }
 
-    char magic[4] = "";
-    fin.read(magic, 4);
-
-    if (magic[0] != 'D' || magic[1] != 'P' || magic[2] != 'F' || magic[3] != ' ') {
+    dpf_util_binr binr(fin);
+    
+    result = internal_read_header(binr, header);
+    if (result.status != dpf_status::finished) {
         result.status  = dpf_status::error;
-        result.message = "`" + dpf_file.string() + "` is not a dpf file.";
-
-        if (context)
-            context->invoke_error(result);
-
+        result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
     }
 
-    fin.seekg(16, std::ios_base::cur);
-    fin.read((char*)&file_count, sizeof(size_t));
-
-    float  prog_change_x = 15.0f / file_count;
-    float  prog_change_y = 85.0f / file_count;
-    size_t u64           = 0U;
-
-    for (size_t i = 0; i < file_count; i++) {
-        std::string relative_file_path = "";
-        dpf_op      op                 = dpf_op::undefined;
-
-        // Read patch operation
-
-        fin.read((char*)&op, sizeof(op));
-
-        if (op == dpf_op::undefined) {
-            result.status  = dpf_status::error;
-            result.message = "Unsupported patch operation.";
-
-            if (context)
-                context->invoke_error(result);
-
-            return result;
-        }
-
-        // Read relative file path
-
-        fin.read((char*)&u64, sizeof(size_t));
-        relative_file_path.resize(u64);
-        fin.read(relative_file_path.data(), u64);
-
-        // Check if file exists
-
-        std::filesystem::path filename = std::filesystem::path(patch_dir).append(relative_file_path);
-
-        if (op == dpf_op::modify || op == dpf_op::remove) {
-            if (!std::filesystem::exists(filename)) {
-                result.status  = dpf_status::error;
-                result.message = "`" + filename.string() + "` doesn't exist.";
-
-                if (context)
-                    context->invoke_error(result);
-
-                return result;
-            }
-        }
-
-        // Skip file content
-
-        if (op == dpf_op::add || op == dpf_op::modify) {
-            fin.seekg(sizeof(size_t), std::ios_base::cur);
-            fin.read((char*)&u64, sizeof(size_t));
-            fin.seekg(u64, std::ios_base::cur);
-        }
-        
-        // Update progress
-
-        if (context)
-            context->invoke_update(prog_change_x);
-    }
-
-    fin.seekg(4 + sizeof(size_t) + 16, std::ios_base::beg);
-
+    float                prog_change = 100.0f / header.file_count;
     std::vector<uint8_t> compressed_buffer;
     std::vector<uint8_t> decompressed_buffer;
 
-    for (size_t i = 0; i < file_count; i++) {
-        std::string relative_file_path = "";
-        dpf_op      op                 = dpf_op::undefined;
+    for (size_t i = 0; i < header.file_count; i++) {
+        dpf_file_header file_header;
+        internal_read_file_header(binr, file_header);
 
-        // Read patch operation
-
-        fin.read((char*)&op, sizeof(op));
-
-        // Read relative file path
-
-        fin.read((char*)&u64, sizeof(size_t));
-        relative_file_path.resize(u64);
-        fin.read(relative_file_path.data(), u64);
-
-        // Preform patch operation
-
-        std::filesystem::path filename = std::filesystem::path(patch_dir).append(relative_file_path);
+        std::filesystem::path filename = std::filesystem::path(patch_dir).append(file_header.file_path);
         std::filesystem::path filedir  = std::filesystem::path(filename).remove_filename();
 
-        if (op == dpf_op::add || op == dpf_op::modify) {
-            size_t decompressed_size = 0U;
-            size_t compressed_size   = 0U;
+        if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify) {
+            mz_ulong real_decompressed_size = static_cast<mz_ulong>(file_header.decompressed_size);
 
-            fin.read((char*)&decompressed_size, sizeof(decompressed_size));
-            fin.read((char*)&compressed_size,   sizeof(compressed_size));
-
-            mz_ulong real_decompressed_size = static_cast<mz_ulong>(decompressed_size);
-
-            compressed_buffer.resize(compressed_size);
-            fin.read((char*)compressed_buffer.data(), compressed_size);
+            compressed_buffer.resize(file_header.compressed_size);
+            binr.read_bytes((char*)compressed_buffer.data(), file_header.compressed_size);
 
             std::filesystem::create_directories(filedir);
 
             std::ofstream fout(filename, std::ios::binary);
             if (!fout.is_open()) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to open `" + filename.string() + "`.";
+                result.message = DPF_FORMAT("Failed to open `{}`.", filename.string());
 
                 if (context)
                     context->invoke_error(result);
@@ -520,14 +435,14 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 return result;
             }
 
-            decompressed_buffer.resize(decompressed_size);
+            decompressed_buffer.resize(file_header.decompressed_size);
 
             int code = mz_uncompress(decompressed_buffer.data(), &real_decompressed_size, compressed_buffer.data(), 
-                static_cast<mz_ulong>(compressed_size));
+                static_cast<mz_ulong>(file_header.compressed_size));
 
-            if (code != MZ_OK || decompressed_size != real_decompressed_size) {
+            if (code != MZ_OK || file_header.decompressed_size != real_decompressed_size) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to decompress `" + filename.string() + "`.";
+                result.message = DPF_FORMAT("Failed to decompress `{}`.", filename.string());
 
                 if (context)
                     context->invoke_error(result);
@@ -538,13 +453,13 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
             if (context) {
                 dpf_file_mod file_mod;
                 file_mod.path = filename;
-                file_mod.op   = op;
+                file_mod.op   = file_header.op;
 
                 dpf_result process_result = context->invoke_buf_process(file_mod, decompressed_buffer);
 
                 if (process_result.status != dpf_status::finished) {
                     result.status  = dpf_status::error;
-                    result.message = "Failed to process buffer of `" + filename.string() + "`. | " + process_result.message;
+                    result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", filename.string(), process_result.message);
 
                     if (context)
                         context->invoke_error(result);
@@ -556,10 +471,10 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
             fout.write((char*)decompressed_buffer.data(), decompressed_buffer.size());
             fout.close();
         }
-        else if (op == dpf_op::remove) {
+        else if (file_header.op == dpf_op::remove) {
             if (!std::filesystem::remove(filename)) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to remove `" + filename.string() + "`.";
+                result.message = DPF_FORMAT("Failed to remove `{}`.", filename.string());
 
                 if (context)
                     context->invoke_error(result);
@@ -568,10 +483,8 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
             }
         }
 
-        // Update progress
-
         if (context)
-            context->invoke_update(prog_change_y);
+            context->invoke_update(prog_change);
     }
 
     fin.close();
