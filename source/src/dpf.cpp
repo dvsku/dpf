@@ -37,6 +37,21 @@ static bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
+bool dpf::is_dpf_file(const FILE_PATH& file) {
+    std::ifstream fin;
+    fin.open(file, std::ios::binary);
+
+    if (!fin.is_open())
+        return false;
+
+    dpf_header    header;
+    dpf_util_binr binr(fin);
+
+    auto result = internal_read_header(binr, header);
+
+    return result.status == dpf_status::finished;
+}
+
 dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
     try {
         return internal_create(input_files, dpf_file, context);

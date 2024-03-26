@@ -24,6 +24,12 @@ namespace dvsku::dpf {
 
     public:
         /// <summary>
+        /// Check if a file is a DPF file
+        /// </summary>
+        /// <returns>TRUE if it's a DPF file, FALSE if it isn't or there's an error</returns>
+        bool is_dpf_file(const FILE_PATH& file);
+
+        /// <summary>
         /// Synchronously create a DPF file containing input files
         /// </summary>
         dpf_result create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
