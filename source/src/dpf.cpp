@@ -188,35 +188,30 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
 }
 
 bool dpf::check_checksum(const FILE_PATH& dpf_file) {
-    char md5[16]          = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    char computed_md5[16] = { 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    char magic[4]         = { 0, 0, 0, 0 };
-
     std::ifstream fin;
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open())
         return false;
 
-    fin.seekg(0, std::ios::end);
-    std::streamsize file_size = fin.tellg();
-    fin.seekg(0, std::ios::beg);
+    dpf_header header;
+    char       checksum[16] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    if (file_size <= 20)
-        return true;
+    {
+        dpf_util_binr binr(fin);
 
-    fin.read(magic, sizeof(magic));
-    fin.read(md5,   sizeof(md5));
-    fin.close();
+        auto result = internal_read_header(binr, header);
+        if (result.status != dpf_status::finished)
+            return false;
 
-    if (magic[0] != 'D' || magic[1] != 'P' || magic[2] != 'F' || magic[3] != ' ')
+        fin.close();
+    }
+
+    if (!internal_get_md5(dpf_file, (unsigned char*)checksum))
         return false;
-
-    if (!internal_get_md5(dpf_file, (unsigned char*)computed_md5))
-        return false;
-
+    
     for (int i = 0; i < 16; i++) {
-        if (md5[i] != computed_md5[i])
+        if (header.checksum[i] != checksum[i])
             return false;
     }
 
