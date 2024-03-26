@@ -133,7 +133,7 @@ void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
 
 dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files) {
     dpf_result result;
-    size_t     file_count = 0U;
+    dpf_header header;
 
     std::ifstream fin;
     fin.open(dpf_file, std::ios::binary);
@@ -144,43 +144,23 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
         return result;
     }
 
-    char magic[4] = "";
-    fin.read(magic, 4);
+    dpf_util_binr binr(fin);
 
-    if (magic[0] != 'D' || magic[1] != 'P' || magic[2] != 'F' || magic[3] != ' ') {
-        result.status = dpf_status::error;
-        result.message = "`" + dpf_file.string() + "` is not a dpf file.";
+    result = internal_read_header(binr, header);
+    if (result.status != dpf_status::finished) {
+        result.status  = dpf_status::error;
+        result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
     }
 
-    fin.seekg(16, std::ios_base::cur);
-    fin.read((char*)&file_count, sizeof(size_t));
+    for (size_t i = 0; i < header.file_count; i++) {
+        dpf_file_header file_header;
+        internal_read_file_header(binr, file_header);
 
-    size_t u64 = 0U;
+        if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify)
+            binr.seek(file_header.compressed_size);
 
-    for (size_t i = 0; i < file_count; i++) {
-        std::string relative_file_path = "";
-        dpf_op      op                 = dpf_op::undefined;
-
-        // Read patch operation
-
-        fin.read((char*)&op, sizeof(op));
-
-        // Read relative file path
-
-        fin.read((char*)&u64, sizeof(size_t));
-        relative_file_path.resize(u64);
-        fin.read(relative_file_path.data(), u64);
-
-        // Skip file content
-
-        if (op == dpf_op::add || op == dpf_op::modify) {
-            fin.seekg(sizeof(size_t), std::ios_base::cur);
-            fin.read((char*)&u64, sizeof(size_t));
-            fin.seekg(u64, std::ios_base::cur);
-        }
-
-        files.push_back(relative_file_path);
+        files.push_back(file_header.file_path);
     }
 
     result.status = dpf_status::finished;
