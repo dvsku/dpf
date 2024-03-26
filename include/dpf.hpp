@@ -23,14 +23,34 @@ namespace dvsku::dpf {
         dpf& operator=(dpf&&)      = delete;
 
     public:
+        /// <summary>
+        /// Synchronously create a DPF file containing input files
+        /// </summary>
         dpf_result create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
+
+        /// <summary>
+        /// Asynchronously create a DPF file containing input files
+        /// </summary>
         void create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
 
+        /// <summary>
+        /// Synchronously patch a dir with a DPF file
+        /// </summary>
         dpf_result patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
+
+        /// <summary>
+        /// Asynchronously patch a dir with a DPF file
+        /// </summary>
         void patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
 
+        /// <summary>
+        /// Get files packed inside a DPF file
+        /// </summary>
         dpf_result get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files);
 
+        /// <summary>
+        /// Check DPF file checksum
+        /// </summary>
         bool check_checksum(const FILE_PATH& dpf_file);
     };
 }
