@@ -17,10 +17,20 @@ struct dpf_header {
     size_t file_count   = 0U;
 };
 
+struct dpf_file_header {
+    dpf_op      op                = dpf_op::undefined;
+    size_t      file_path_size    = 0U;
+    std::string file_path         = "";
+    size_t      decompressed_size = 0U;
+    size_t      compressed_size   = 0U;
+};
+
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context);
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context);
 
 static dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header);
+static dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& header);
+
 static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
 static bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
 
@@ -601,6 +611,22 @@ dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
 
     binr.read_bytes(header.checksum, sizeof(header.checksum));
     header.file_count = binr.read_num<size_t>();
+
+    result.status = dpf_status::finished;
+    return result;
+}
+
+dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& header) {
+    dpf_result result;
+
+    header.op             = binr.read_num<dpf_op>();
+    header.file_path_size = binr.read_num<size_t>();
+    header.file_path      = binr.read_str(header.file_path_size);
+    
+    if (header.op == dpf_op::add || header.op == dpf_op::modify) {
+        header.decompressed_size = binr.read_num<size_t>();
+        header.compressed_size   = binr.read_num<size_t>();
+    }
 
     result.status = dpf_status::finished;
     return result;
