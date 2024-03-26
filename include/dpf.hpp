@@ -5,6 +5,8 @@
 #include "dpf\dpf_inputs.hpp"
 
 #include <filesystem>
+#include <vector>
+#include <string>
 
 namespace dvsku::dpf {
     class dpf {
@@ -26,6 +28,8 @@ namespace dvsku::dpf {
 
         dpf_result patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
         void patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
+
+        dpf_result get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files);
 
         bool check_checksum(const FILE_PATH& dpf_file);
     };

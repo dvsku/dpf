@@ -113,6 +113,62 @@ void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
     t.detach();
 }
 
+dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files) {
+    dpf_result result;
+    size_t     file_count = 0U;
+
+    std::ifstream fin;
+    fin.open(dpf_file, std::ios::binary);
+
+    if (!fin.is_open()) {
+        result.status  = dpf_status::error;
+        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+        return result;
+    }
+
+    char magic[4] = "";
+    fin.read(magic, 4);
+
+    if (magic[0] != 'D' || magic[1] != 'P' || magic[2] != 'F' || magic[3] != ' ') {
+        result.status = dpf_status::error;
+        result.message = "`" + dpf_file.string() + "` is not a dpf file.";
+        return result;
+    }
+
+    fin.seekg(16, std::ios_base::cur);
+    fin.read((char*)&file_count, sizeof(size_t));
+
+    size_t u64 = 0U;
+
+    for (size_t i = 0; i < file_count; i++) {
+        std::string relative_file_path = "";
+        dpf_op      op                 = dpf_op::undefined;
+
+        // Read patch operation
+
+        fin.read((char*)&op, sizeof(op));
+
+        // Read relative file path
+
+        fin.read((char*)&u64, sizeof(size_t));
+        relative_file_path.resize(u64);
+        fin.read(relative_file_path.data(), u64);
+
+        // Skip file content
+
+        if (op == dpf_op::add || op == dpf_op::modify) {
+            fin.seekg(sizeof(size_t), std::ios_base::cur);
+            fin.read((char*)&u64, sizeof(size_t));
+            fin.seekg(u64, std::ios_base::cur);
+        }
+
+        files.push_back(relative_file_path);
+    }
+
+    result.status = dpf_status::finished;
+    return result;
+}
+
 bool dpf::check_checksum(const FILE_PATH& dpf_file) {
     char md5[16]          = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     char computed_md5[16] = { 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
