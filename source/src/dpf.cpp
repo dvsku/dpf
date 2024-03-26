@@ -49,7 +49,7 @@ bool dpf::is_dpf_file(const FILE_PATH& file) {
 
     auto result = internal_read_header(binr, header);
 
-    return result.status == dpf_status::finished;
+    return result.status == dpf_status::ok;
 }
 
 dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
@@ -162,7 +162,7 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
     dpf_util_binr binr(fin);
 
     result = internal_read_header(binr, header);
-    if (result.status != dpf_status::finished) {
+    if (result.status != dpf_status::ok) {
         result.status  = dpf_status::error;
         result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
@@ -178,7 +178,7 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
         files.push_back(file_header.file_path);
     }
 
-    result.status = dpf_status::finished;
+    result.status = dpf_status::ok;
     return result;
 }
 
@@ -196,7 +196,7 @@ bool dpf::check_checksum(const FILE_PATH& dpf_file) {
         dpf_util_binr binr(fin);
 
         auto result = internal_read_header(binr, header);
-        if (result.status != dpf_status::finished)
+        if (result.status != dpf_status::ok)
             return false;
 
         fin.close();
@@ -287,7 +287,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         if (context) {
             dpf_result process_result = context->invoke_buf_process(input_file, buffer);
             
-            if (process_result.status != dpf_status::finished) {
+            if (process_result.status != dpf_status::ok) {
                 result.status  = dpf_status::error;
                 result.message = "Failed to process buffer of `" + input_file.path.string() + "`. | " + process_result.message;
 
@@ -372,7 +372,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     fstream.write(md5, 16);
     fstream.close();
 
-    result.status = dpf_status::finished;
+    result.status = dpf_status::ok;
     if (context)
         context->invoke_finish(result);
 
@@ -399,7 +399,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
     dpf_util_binr binr(fin);
     
     result = internal_read_header(binr, header);
-    if (result.status != dpf_status::finished) {
+    if (result.status != dpf_status::ok) {
         result.status  = dpf_status::error;
         result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
@@ -457,7 +457,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
                 dpf_result process_result = context->invoke_buf_process(file_mod, decompressed_buffer);
 
-                if (process_result.status != dpf_status::finished) {
+                if (process_result.status != dpf_status::ok) {
                     result.status  = dpf_status::error;
                     result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", filename.string(), process_result.message);
 
@@ -489,7 +489,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
     fin.close();
 
-    result.status = dpf_status::finished;
+    result.status = dpf_status::ok;
     if (context)
         context->invoke_finish(result);
 
@@ -515,7 +515,7 @@ dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
     binr.read_bytes(header.checksum, sizeof(header.checksum));
     header.file_count = binr.read_num<size_t>();
 
-    result.status = dpf_status::finished;
+    result.status = dpf_status::ok;
     return result;
 }
 
@@ -531,7 +531,7 @@ dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& heade
         header.compressed_size   = binr.read_num<size_t>();
     }
 
-    result.status = dpf_status::finished;
+    result.status = dpf_status::ok;
     return result;
 }
 

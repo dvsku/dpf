@@ -26,7 +26,7 @@ dpf_result dpf_context::invoke_buf_process(const dpf_file_mod& file, std::vector
     dpf_result result;
     
     if (!buf_process_fn) {
-        result.status = dpf_status::finished;
+        result.status = dpf_status::ok;
         return result;
     }
 

@@ -10,7 +10,7 @@ namespace dvsku::dpf {
         undefined = 0x0,
         cancelled = 0x1,
         error     = 0x2,
-        finished  = 0x3
+        ok        = 0x3
     };
 
     /// <summary>
