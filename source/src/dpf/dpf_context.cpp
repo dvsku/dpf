@@ -17,11 +17,6 @@ void dpf_context::invoke_update(float progress) {
         callback_update(progress);
 }
 
-void dpf_context::invoke_error(dpf_result& result) {
-    if (callback_error)
-        callback_error(result);
-}
-
 dpf_result dpf_context::invoke_buf_process(const dpf_file_mod& file, std::vector<uint8_t>& buffer) {
     dpf_result result;
     

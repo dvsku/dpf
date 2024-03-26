@@ -80,19 +80,19 @@ void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_c
         catch (const std::exception& e) {
             if (context) {
                 dpf_result result;
-                result.status = dpf_status::error;
+                result.status  = dpf_status::error;
                 result.message = e.what();
 
-                context->invoke_error(result);
+                context->invoke_finish(result);
             }
         }
         catch (...) {
             if (context) {
                 dpf_result result;
-                result.status = dpf_status::error;
+                result.status  = dpf_status::error;
                 result.message = "Critical failure.";
 
-                context->invoke_error(result);
+                context->invoke_finish(result);
             }
         }
     });
@@ -105,14 +105,14 @@ dpf_result dpf::patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
     }
     catch (const std::exception& e) {
         dpf_result result;
-        result.status = dpf_status::error;
+        result.status  = dpf_status::error;
         result.message = e.what();
 
         return result;
     }
     catch (...) {
         dpf_result result;
-        result.status = dpf_status::error;
+        result.status  = dpf_status::error;
         result.message = "Critical failure.";
 
         return result;
@@ -130,7 +130,7 @@ void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
                 result.status  = dpf_status::error;
                 result.message = e.what();
 
-                context->invoke_error(result);
+                context->invoke_finish(result);
             }    
         }
         catch (...) {
@@ -139,7 +139,7 @@ void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
                 result.status  = dpf_status::error;
                 result.message = "Critical failure.";
 
-                context->invoke_error(result);
+                context->invoke_finish(result);
             }
         }
     });
@@ -233,7 +233,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         result.message = "Failed to open `" + dpf_file.string() + "` file.";
         
         if (context)
-            context->invoke_error(result);
+            context->invoke_finish(result);
 
         return result;
     }
@@ -260,7 +260,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 result.message = "Failed to open input file `" + input_file.path.string() + "`.";
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -278,7 +278,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 result.message = "Failed to read input file `" + input_file.path.string() + "`.";
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -292,7 +292,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 result.message = "Failed to process buffer of `" + input_file.path.string() + "`. | " + process_result.message;
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -321,7 +321,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 result.message = "Failed to compress input file `" + input_file.path.string() + "`.";
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -363,7 +363,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         result.message = "Failed to open `" + dpf_file.string() + "` file.";
 
         if (context)
-            context->invoke_error(result);
+            context->invoke_finish(result);
 
         return result;
     }
@@ -391,7 +391,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
 
         if (context)
-            context->invoke_error(result);
+            context->invoke_finish(result);
 
         return result;
     }
@@ -430,7 +430,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 result.message = DPF_FORMAT("Failed to open `{}`.", filename.string());
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -445,7 +445,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 result.message = DPF_FORMAT("Failed to decompress `{}`.", filename.string());
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
@@ -462,7 +462,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                     result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", filename.string(), process_result.message);
 
                     if (context)
-                        context->invoke_error(result);
+                        context->invoke_finish(result);
 
                     return result;
                 }
@@ -477,7 +477,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 result.message = DPF_FORMAT("Failed to remove `{}`.", filename.string());
 
                 if (context)
-                    context->invoke_error(result);
+                    context->invoke_finish(result);
 
                 return result;
             }
