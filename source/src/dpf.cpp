@@ -1,4 +1,5 @@
 #include "dpf.hpp"
+#include "utilities/dpf_util_binr.hpp"
 
 #include <thread>
 #include <fstream>
@@ -10,9 +11,16 @@ using namespace dvsku::dpf;
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
+struct dpf_header {
+    char   magic[4]     = { 0, 0, 0, 0 };
+    char   checksum[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    size_t file_count   = 0U;
+};
+
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context);
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context* context);
 
+static dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header);
 static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
 static bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
 
@@ -572,6 +580,29 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
     if (context)
         context->invoke_finish(result);
 
+    return result;
+}
+
+dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
+    dpf_result result;
+    result.status = dpf_status::error;
+    
+    if (binr.size() < sizeof(header)) {
+        result.message = "Header size mismatch.";
+        return result;
+    }
+
+    binr.read_bytes(header.magic, sizeof(header.magic));
+
+    if (header.magic[0] != 'D' || header.magic[1] != 'P' || header.magic[2] != 'F' || header.magic[3] != ' ') {
+        result.message = "Not a DPF file.";
+        return result;
+    }
+
+    binr.read_bytes(header.checksum, sizeof(header.checksum));
+    header.file_count = binr.read_num<size_t>();
+
+    result.status = dpf_status::finished;
     return result;
 }
 
