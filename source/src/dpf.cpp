@@ -218,9 +218,11 @@ bool dpf::check_checksum(const FILE_PATH& dpf_file) {
 
 dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context) {
     dpf_result result;
-    size_t     file_count  = input_files.files.size();
-    float      prog_change = 100.0f / file_count;
-    char       md5[16]     = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    
+    dpf_header header; 
+    header.file_count = input_files.files.size();
+
+    float prog_change = 100.0f / header.file_count;
     
     if (context)
         context->invoke_start();
@@ -230,7 +232,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
     if (!fout.is_open()) {
         result.status  = dpf_status::error;
-        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+        result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
         
         if (context)
             context->invoke_finish(result);
@@ -239,12 +241,15 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     }
 
     fout.write("DPF ", 4);
-    fout.write(md5, 16);
-    fout.write((char*)&file_count, sizeof(size_t));
+    fout.write(header.checksum, sizeof(header.checksum));
+    fout.write((char*)&header.file_count, sizeof(header.file_count));
 
     std::vector<uint8_t> buffer;
     
     for (dpf_file_mod& input_file : input_files.files) {
+        dpf_file_header file_header;
+        file_header.op = input_file.op;
+
         if (context && context->invoke_cancel()) {
             result.status = dpf_status::cancelled;
             return result;
@@ -252,12 +257,12 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
         buffer.clear();
 
-        if (input_file.op == dpf_op::add || input_file.op == dpf_op::modify) {
+        if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify) {
             std::ifstream fin(input_file.path, std::ios::binary);
             
             if (!fin.is_open()) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to open input file `" + input_file.path.string() + "`.";
+                result.message = DPF_FORMAT("Failed to open input file `{}`.", input_file.path.string());
 
                 if (context)
                     context->invoke_finish(result);
@@ -266,16 +271,15 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
             }
 
             fin.seekg(0, std::ios::end);
-            std::streamsize file_size = fin.tellg();
+            file_header.decompressed_size = fin.tellg();
             fin.seekg(0, std::ios::beg);
 
-            buffer.resize(file_size);
-
-            fin.read((char*)buffer.data(), file_size);
+            buffer.resize((size_t)file_header.decompressed_size);
+            fin.read((char*)buffer.data(), (size_t)file_header.decompressed_size);
 
             if (fin.bad()) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to read input file `" + input_file.path.string() + "`.";
+                result.message = DPF_FORMAT("Failed to read input file `{}`.", input_file.path.string());
 
                 if (context)
                     context->invoke_finish(result);
@@ -289,7 +293,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
             
             if (process_result.status != dpf_status::ok) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to process buffer of `" + input_file.path.string() + "`. | " + process_result.message;
+                result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", input_file.path.string(), process_result.message);
 
                 if (context)
                     context->invoke_finish(result);
@@ -301,14 +305,14 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         if (input_files.base_path != "")
             internal_make_relative(input_file, input_files.base_path);
 
-        std::string path = input_file.path.string();
-        size_t      u64  = path.size();
+        file_header.file_path      = input_file.path.string();
+        file_header.file_path_size = file_header.file_path.size();
 
-        fout.write((char*)&input_file.op, sizeof(input_file.op));
-        fout.write((char*)&u64, sizeof(size_t));
-        fout.write(path.data(), u64);
+        fout.write((char*)&file_header.op, sizeof(file_header.op));
+        fout.write((char*)&file_header.file_path_size, sizeof(file_header.file_path_size));
+        fout.write(file_header.file_path.data(), file_header.file_path_size);
         
-        if (input_file.op == dpf_op::add || input_file.op == dpf_op::modify) {
+        if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify) {
             mz_ulong             max_compressed_size = mz_compressBound(static_cast<mz_ulong>(buffer.size()));
             mz_ulong             compressed_size     = max_compressed_size;
             std::vector<uint8_t> buffer_compress(max_compressed_size);
@@ -318,7 +322,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
             if (code != MZ_OK) {
                 result.status  = dpf_status::error;
-                result.message = "Failed to compress input file `" + input_file.path.string() + "`.";
+                result.message = DPF_FORMAT("Failed to compress input file `{}`.", input_file.path.string());
 
                 if (context)
                     context->invoke_finish(result);
@@ -326,21 +330,20 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 return result;
             }
 
-            buffer_compress.resize(static_cast<size_t>(compressed_size));
-
+            file_header.compressed_size = compressed_size;
+            buffer_compress.resize(static_cast<size_t>(file_header.compressed_size));
+            
             // Write decompressed size
 
-            u64 = buffer.size();
-            fout.write((char*)&u64, sizeof(u64));
+            fout.write((char*)&file_header.decompressed_size, sizeof(file_header.decompressed_size));
 
             // Write compressed size
 
-            u64 = buffer_compress.size();
-            fout.write((char*)&u64, sizeof(u64));
+            fout.write((char*)&file_header.compressed_size, sizeof(file_header.compressed_size));
 
             // Write content
 
-            fout.write((char*)buffer_compress.data(), u64);
+            fout.write((char*)buffer_compress.data(), file_header.compressed_size);
         }
 
         if (context)
@@ -351,7 +354,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
     // Create checksum
 
-    internal_get_md5(dpf_file, (unsigned char*)md5);
+    internal_get_md5(dpf_file, (unsigned char*)header.checksum);
 
     // Write checksum
 
@@ -360,7 +363,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
     if (!fstream.is_open()) {
         result.status  = dpf_status::error;
-        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+        result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
 
         if (context)
             context->invoke_finish(result);
@@ -369,7 +372,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     }
 
     fstream.seekp(4, std::ios::beg);
-    fstream.write(md5, 16);
+    fstream.write(header.checksum, sizeof(header.checksum));
     fstream.close();
 
     result.status = dpf_status::ok;
