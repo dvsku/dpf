@@ -1,6 +1,6 @@
 ﻿CMAKE_MINIMUM_REQUIRED (VERSION 3.14)
 
-OPTION(DPF_TESTS "Build dpf tests" OFF)
+OPTION(DPF_TESTS "Build dpf tests" ON)
 
 PROJECT(dpf)
 
