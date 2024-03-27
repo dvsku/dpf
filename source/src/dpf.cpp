@@ -12,17 +12,17 @@ using namespace dvsku::dpf;
 // INTERNAL
 
 struct dpf_header {
-    char   magic[4]     = { 0, 0, 0, 0 };
-    char   checksum[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    size_t file_count   = 0U;
+    char     magic[4]     = { 0, 0, 0, 0 };
+    char     checksum[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint64_t file_count   = 0U;
 };
 
 struct dpf_file_header {
     dpf_op      op                = dpf_op::undefined;
-    size_t      file_path_size    = 0U;
+    uint64_t    file_path_size    = 0U;
     std::string file_path         = "";
-    size_t      decompressed_size = 0U;
-    size_t      compressed_size   = 0U;
+    uint64_t    decompressed_size = 0U;
+    uint64_t    compressed_size   = 0U;
 };
 
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context);
@@ -173,7 +173,7 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
         internal_read_file_header(binr, file_header);
 
         if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify)
-            binr.seek(file_header.compressed_size);
+            binr.seek((size_t)file_header.compressed_size);
 
         files.push_back(file_header.file_path);
     }
@@ -422,8 +422,8 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         if (file_header.op == dpf_op::add || file_header.op == dpf_op::modify) {
             mz_ulong real_decompressed_size = static_cast<mz_ulong>(file_header.decompressed_size);
 
-            compressed_buffer.resize(file_header.compressed_size);
-            binr.read_bytes((char*)compressed_buffer.data(), file_header.compressed_size);
+            compressed_buffer.resize((size_t)file_header.compressed_size);
+            binr.read_bytes((char*)compressed_buffer.data(), (size_t)file_header.compressed_size);
 
             std::filesystem::create_directories(filedir);
 
@@ -438,7 +438,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 return result;
             }
 
-            decompressed_buffer.resize(file_header.decompressed_size);
+            decompressed_buffer.resize((size_t)file_header.decompressed_size);
 
             int code = mz_uncompress(decompressed_buffer.data(), &real_decompressed_size, compressed_buffer.data(), 
                 static_cast<mz_ulong>(file_header.compressed_size));
@@ -516,7 +516,7 @@ dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
     }
 
     binr.read_bytes(header.checksum, sizeof(header.checksum));
-    header.file_count = binr.read_num<size_t>();
+    header.file_count = binr.read_num<uint64_t>();
 
     result.status = dpf_status::ok;
     return result;
@@ -526,12 +526,12 @@ dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& heade
     dpf_result result;
 
     header.op             = binr.read_num<dpf_op>();
-    header.file_path_size = binr.read_num<size_t>();
-    header.file_path      = binr.read_str(header.file_path_size);
+    header.file_path_size = binr.read_num<uint64_t>();
+    header.file_path      = binr.read_str((size_t)header.file_path_size);
     
     if (header.op == dpf_op::add || header.op == dpf_op::modify) {
-        header.decompressed_size = binr.read_num<size_t>();
-        header.compressed_size   = binr.read_num<size_t>();
+        header.decompressed_size = binr.read_num<uint64_t>();
+        header.compressed_size   = binr.read_num<uint64_t>();
     }
 
     result.status = dpf_status::ok;
@@ -550,10 +550,10 @@ bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
         return false;
 
     fin.seekg(0, std::ios::end);
-    std::streamsize file_size = fin.tellg();
+    size_t file_size = (size_t)fin.tellg();
     fin.seekg(0, std::ios::beg);
 
-    if (file_size <= 20)
+    if (file_size <= sizeof(dpf_header))
         return false;
 
     file_size -= 20;
