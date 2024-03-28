@@ -6,15 +6,19 @@
 #include <miniz\miniz.h>
 #include <md5\md5.hpp>
 
+#define DPF_VERSION 0x0001
+
 using namespace dvsku::dpf;
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
 struct dpf_header {
-    char     magic[4]     = { 0, 0, 0, 0 };
-    char     checksum[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    uint64_t file_count   = 0U;
+    char     magic[4]      = { 0, 0, 0, 0 };
+    uint16_t dpf_version   = DPF_VERSION;
+    char     checksum[16]  = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint64_t patch_version = 0U;
+    uint64_t file_count    = 0U;
 };
 
 struct dpf_file_header {
@@ -219,8 +223,9 @@ bool dpf::check_checksum(const FILE_PATH& dpf_file) {
 dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context* context) {
     dpf_result result;
     
-    dpf_header header; 
-    header.file_count = input_files.files.size();
+    dpf_header header;
+    header.patch_version = input_files.version;
+    header.file_count    = input_files.files.size();
 
     float prog_change = 100.0f / header.file_count;
     
@@ -241,7 +246,9 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     }
 
     fout.write("DPF ", 4);
+    fout.write((char*)&header.dpf_version, sizeof(header.dpf_version));
     fout.write(header.checksum, sizeof(header.checksum));
+    fout.write((char*)&header.patch_version, sizeof(header.patch_version));
     fout.write((char*)&header.file_count, sizeof(header.file_count));
 
     std::vector<uint8_t> buffer;
@@ -371,7 +378,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
         return result;
     }
 
-    fstream.seekp(4, std::ios::beg);
+    fstream.seekp(sizeof(header.magic) + sizeof(header.dpf_version), std::ios::beg);
     fstream.write(header.checksum, sizeof(header.checksum));
     fstream.close();
 
@@ -515,8 +522,15 @@ dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
         return result;
     }
 
+    header.dpf_version = binr.read_num<uint16_t>();
+    if (header.dpf_version != DPF_VERSION) {
+        result.message = "Unsupported DPF version.";
+        return result;
+    }
+
     binr.read_bytes(header.checksum, sizeof(header.checksum));
-    header.file_count = binr.read_num<uint64_t>();
+    header.patch_version = binr.read_num<uint64_t>();
+    header.file_count    = binr.read_num<uint64_t>();
 
     result.status = dpf_status::ok;
     return result;
@@ -556,8 +570,8 @@ bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5) {
     if (file_size <= sizeof(dpf_header))
         return false;
 
-    file_size -= 20;
-    fin.seekg(20, std::ios::beg);
+    file_size -= 22;
+    fin.seekg(22, std::ios::beg);
 
     std::vector<char> buffer;
     buffer.resize(file_size);
