@@ -186,6 +186,51 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
     return result;
 }
 
+dpf_result dpf::get_patch_version(const FILE_PATH& dpf_file, uint64_t& version) {
+    dpf_result result;
+    dpf_header header;
+
+    std::ifstream fin;
+    fin.open(dpf_file, std::ios::binary);
+
+    if (!fin.is_open()) {
+        result.status  = dpf_status::error;
+        result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
+        return result;
+    }
+
+    dpf_util_binr binr(fin);
+
+    result = internal_read_header(binr, header);
+    if (result.status != dpf_status::ok) {
+        result.status  = dpf_status::error;
+        result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
+        return result;
+    }
+
+    version = header.patch_version;
+    
+    result.status = dpf_status::ok;
+    return dpf_result();
+}
+
+dpf_result dpf::get_patch_version(const FILE_PATH& dpf_file, uint16_t& version_major,
+    uint16_t& version_minor, uint16_t& version_rev)
+{
+    uint64_t version = 0U;
+    
+    dpf_result result = get_patch_version(dpf_file, version);
+    if (result.status != dpf_status::ok)
+        return result;
+    
+    version_major = static_cast<short>((version >> 48) & 0xFFFF);
+    version_minor = static_cast<short>((version >> 32) & 0xFFFF);
+    version_rev   = static_cast<short>((version >> 16) & 0xFFFF);
+
+    result.status = dpf_status::ok;
+    return result;
+}
+
 bool dpf::check_checksum(const FILE_PATH& dpf_file) {
     std::ifstream fin;
     fin.open(dpf_file, std::ios::binary);

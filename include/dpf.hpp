@@ -55,6 +55,16 @@ namespace dvsku::dpf {
         dpf_result get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files);
 
         /// <summary>
+        /// Get packed patch version
+        /// </summary>
+        dpf_result get_patch_version(const FILE_PATH& dpf_file, uint64_t& version);
+
+        /// <summary>
+        /// Get unpacked patch version
+        /// </summary>
+        dpf_result get_patch_version(const FILE_PATH& dpf_file, uint16_t& version_major, uint16_t& version_minor, uint16_t& version_rev);
+
+        /// <summary>
         /// Check DPF file checksum
         /// </summary>
         bool check_checksum(const FILE_PATH& dpf_file);
