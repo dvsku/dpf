@@ -159,7 +159,7 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
 
     if (!fin.is_open()) {
         result.status  = dpf_status::error;
-        result.message = "Failed to open `" + dpf_file.string() + "` file.";
+        result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
         return result;
     }
 

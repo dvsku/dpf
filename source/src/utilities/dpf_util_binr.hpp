@@ -69,13 +69,17 @@ namespace dvsku::dpf {
 
     private:
         void assert_can_read(std::size_t len) {
-            if (pos() + len > m_size)
-                throw std::runtime_error(DPF_FORMAT("Tried to read outside file bounds. | Read offset: {:x} Read len: {}", pos(), len));
+            auto pos = this->pos();
+
+            if (pos + len > m_size)
+                throw std::runtime_error(DPF_FORMAT("Tried to read outside file bounds. | Read offset: {:x} Read len: {}", pos, len));
         }
 
         void assert_can_seek(std::size_t offset) {
-            if (pos() + offset > m_size)
-                throw std::runtime_error(DPF_FORMAT("Tried to seek outside file bounds. | Current offset: {:x} Seek offset: {}", pos(), offset));
+            auto pos = this->pos();
+
+            if (pos + offset > m_size)
+                throw std::runtime_error(DPF_FORMAT("Tried to seek outside file bounds. | Current offset: {:x} Seek offset: {}", pos, offset));
         }
     };
 }
