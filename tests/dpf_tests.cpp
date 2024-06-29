@@ -1,13 +1,13 @@
-#include "dpf.hpp"
-#include "utilities_assert.hpp"
+#include "libdpf.hpp"
 
+#include <gtest/gtest.h>
 #include <fstream>
 #include <string>
 #include <algorithm>
 #include <filesystem>
 #include <vector>
 
-using namespace dvsku::dpf;
+using namespace libdpf;
 
 #define PATCH_FILE "./patch.dpf"
 
@@ -34,18 +34,18 @@ static bool create_patch_file(const std::string& base) {
     dpf        dpf;
     dpf_inputs inputs;
 
-    inputs.base_path = std::string(base) + std::string("/tests/resources/patch");
+    inputs.base_path = std::string(base) + std::string("/resources/patch");
 
     inputs.files.push_back(
-        { std::string(base) + std::string("/tests/resources/patch/1.txt"), dpf_op::add }
+        { std::string(base) + std::string("/resources/patch/1.txt"), dpf_op::add }
     );
 
     inputs.files.push_back(
-        { std::string(base) + std::string("/tests/resources/patch/subfolder/2.txt"), dpf_op::modify }
+        { std::string(base) + std::string("/resources/patch/subfolder/2.txt"), dpf_op::modify }
     );
 
     inputs.files.push_back(
-        { std::string(base) + std::string("/tests/resources/patch/subfolder/3.txt"), dpf_op::remove }
+        { std::string(base) + std::string("/resources/patch/subfolder/3.txt"), dpf_op::remove }
     );
 
     auto result = dpf.create(inputs, "./patch.dpf");
@@ -82,69 +82,44 @@ static bool copy_directory(const std::filesystem::path& source, const std::files
     return true;
 }
 
-static int patch(const std::string& base) {
+TEST(dpf, patching) {
     dpf dpf;
 
-    try {
-        ASSERT(copy_directory(std::string(base) + std::string("/tests/resources/original/"), "./to_patch/"));
-        
-        auto result = dpf.patch("./patch.dpf", "./to_patch/");
+    ASSERT_TRUE(create_patch_file(BASE_PATH));
+    ASSERT_TRUE(copy_directory(std::string(BASE_PATH) + std::string("/resources/original/"), "./to_patch/"));
 
-        ASSERT(result.status == dpf_status::ok);
+    auto result = dpf.patch("./patch.dpf", "./to_patch/");
 
-        bool valid = compare_files("./to_patch/1.txt",           std::string(base) + std::string("/tests/resources/patch/1.txt")) &&
-                     compare_files("./to_patch/subfolder/2.txt", std::string(base) + std::string("/tests/resources/patch/subfolder/2.txt")) &&
-                     !std::filesystem::exists("./to_patch/subfolder/3.txt");
-
-        ASSERT(valid);
-    }
-    catch (...) { return 1; }
-
-    return 0;
+    ASSERT_TRUE(result.status == dpf_status::ok);
+    ASSERT_TRUE(compare_files("./to_patch/1.txt", std::string(BASE_PATH) + std::string("/resources/patch/1.txt")));
+    ASSERT_TRUE(compare_files("./to_patch/subfolder/2.txt", std::string(BASE_PATH) + std::string("/resources/patch/subfolder/2.txt")));
+    ASSERT_FALSE(std::filesystem::exists("./to_patch/subfolder/3.txt"));
 }
 
-static int check_checksum(const std::string& base) {
+TEST(dpf, checksum) {
     dpf dpf;
 
-    ASSERT(dpf.check_checksum(PATCH_FILE));
-    ASSERT(!dpf.check_checksum(std::string(base) + std::string("/tests/resources/patch/1.txt")));
-
-    return 0;
+    ASSERT_TRUE(create_patch_file(BASE_PATH));
+    ASSERT_TRUE(dpf.check_checksum(PATCH_FILE));
+    ASSERT_FALSE(dpf.check_checksum(std::string(BASE_PATH) + std::string("/resources/patch/1.txt")));
 }
 
-static int get_files(const std::string& base) {
+TEST(dpf, get_files) {
     dpf                      dpf;
     std::vector<std::string> files;
 
+    ASSERT_TRUE(create_patch_file(BASE_PATH));
+
     auto result = dpf.get_files(PATCH_FILE, files);
 
-    ASSERT(result.status == dpf_status::ok);
-    ASSERT(files.size() == 3);
-
-    return 0;
+    ASSERT_TRUE(result.status == dpf_status::ok);
+    ASSERT_TRUE(files.size() == 3);
 }
 
-static int is_dpf_file(const std::string& base) {
+TEST(dpf, is_dpf_file) {
     dpf dpf;
 
-    ASSERT(dpf.is_dpf_file(PATCH_FILE));
-    ASSERT(!dpf.is_dpf_file(std::string(base) + std::string("/tests/resources/patch/1.txt")));
-
-    return 0;
-}
-
-int main(int argc, char* argv[]) {
-    if (argc == 3) {
-        ASSERT(create_patch_file(argv[2]));
-
-        switch (std::stoi(argv[1])) {
-            case 0:  return patch(argv[2]);
-            case 1:  return check_checksum(argv[2]);
-            case 2:  return get_files(argv[2]);
-            case 3:  return is_dpf_file(argv[2]);
-            default: break;
-        }
-    }
-
-    return 0;
+    ASSERT_TRUE(create_patch_file(BASE_PATH));
+    ASSERT_TRUE(dpf.is_dpf_file(PATCH_FILE));
+    ASSERT_FALSE(dpf.is_dpf_file(std::string(BASE_PATH) + std::string("/resources/patch/1.txt")));
 }
