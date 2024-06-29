@@ -4,34 +4,53 @@
 #include "dpf_file_mod.hpp"
 
 #include <functional>
-#include <filesystem>
 #include <vector>
 #include <atomic>
 
 namespace dvsku::dpf {
-    /// <summary>
-    /// dpf context object
-    /// </summary>
+    /*
+        dpf context object
+
+        Contains user bound callbacks and work cancelling.
+    */
     struct dpf_context {
         using start_callback_t  = std::function<void()>;
         using finish_callback_t = std::function<void(dpf_result)>;
         using update_callback_t = std::function<void(float)>;
+        using buf_process_fn_t  = std::function<dpf_result(const dpf_file_mod& file, std::vector<uint8_t>& buffer)>;
 
-        // Perform additional buffer processing before compression / after decompression
-        // Considered successful if return status is finished, else it's an error
-        using buf_process_t = std::function<dpf_result(const dpf_file_mod& file, std::vector<uint8_t>& buffer)>;
+        /*
+            Start callback.
 
-        start_callback_t  callback_start  = nullptr;
-        finish_callback_t callback_finish = nullptr;
-        update_callback_t callback_update = nullptr;
-        buf_process_t     buf_process_fn  = nullptr;
-        std::atomic_bool* cancel          = nullptr;
+            @param void()
+        */
+        start_callback_t start_callback = nullptr;
 
-        void invoke_start();
-        void invoke_finish(dpf_result& result);
-        void invoke_update(float progress);
-        dpf_result invoke_buf_process(const dpf_file_mod& file, std::vector<uint8_t>& buffer);
+        /*
+            Finish callback.
 
-        bool invoke_cancel();
+            @param void(dpf_result)
+        */
+        finish_callback_t finish_callback = nullptr;
+
+        /*
+            Update callback.
+
+            @param void(float) -> progress change
+        */
+        update_callback_t update_callback = nullptr;
+
+        /*
+            Buffer processing before compression / after decompression.
+            Considered successful if return status is finished.
+
+            @param dpf_result(const dpf_file_mod&, std::vector<uint8_t>&)
+        */
+        buf_process_fn_t buf_process_fn  = nullptr;
+
+        /*
+            Cancel token.
+        */
+        std::atomic_bool* cancel = nullptr;
     };
 }
