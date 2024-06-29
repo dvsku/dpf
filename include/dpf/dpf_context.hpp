@@ -6,6 +6,7 @@
 #include <functional>
 #include <filesystem>
 #include <vector>
+#include <atomic>
 
 namespace dvsku::dpf {
     /// <summary>
@@ -24,7 +25,7 @@ namespace dvsku::dpf {
         finish_callback_t callback_finish = nullptr;
         update_callback_t callback_update = nullptr;
         buf_process_t     buf_process_fn  = nullptr;
-        bool*             cancel          = nullptr;
+        std::atomic_bool* cancel          = nullptr;
 
         void invoke_start();
         void invoke_finish(dpf_result& result);

@@ -29,7 +29,7 @@ dpf_result dpf_context::invoke_buf_process(const dpf_file_mod& file, std::vector
 }
 
 bool dpf_context::invoke_cancel() {
-    if (cancel && *cancel) {
+    if (cancel && cancel->load()) {
         dpf_result result;
         result.status = dpf_status::cancelled;
 
