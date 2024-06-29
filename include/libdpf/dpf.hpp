@@ -1,14 +1,14 @@
 #pragma once
 
-#include "dpf\dpf_context.hpp"
-#include "dpf\dpf_result.hpp"
-#include "dpf\dpf_inputs.hpp"
+#include "libdpf/dpf_context.hpp"
+#include "libdpf/misc/dpf_result.hpp"
+#include "libdpf/misc/dpf_inputs.hpp"
 
 #include <filesystem>
 #include <vector>
 #include <string>
 
-namespace dvsku::dpf {
+namespace libdpf {
     class dpf {
     public:
         using FILE_PATH = std::filesystem::path;
@@ -23,50 +23,51 @@ namespace dvsku::dpf {
         dpf& operator=(dpf&&)      = delete;
 
     public:
-        /// <summary>
-        /// Check if a file is a DPF file
-        /// </summary>
-        /// <returns>TRUE if it's a DPF file, FALSE if it isn't or there's an error</returns>
+        /*
+            Check if a file is a DPF file.
+
+            @returns TRUE if it's a DPF file, FALSE if it isn't or there's a failure
+        */
         bool is_dpf_file(const FILE_PATH& file);
 
-        /// <summary>
-        /// Synchronously create a DPF file containing input files
-        /// </summary>
+        /*
+            Synchronously create a DPF file containing input files.
+        */
         dpf_result create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
 
-        /// <summary>
-        /// Asynchronously create a DPF file containing input files
-        /// </summary>
+        /*
+            Asynchronously create a DPF file containing input files.
+        */
         void create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context = nullptr);
 
-        /// <summary>
-        /// Synchronously patch a dir with a DPF file
-        /// </summary>
+        /*
+            Synchronously patch a dir with a DPF file.
+        */
         dpf_result patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
 
-        /// <summary>
-        /// Asynchronously patch a dir with a DPF file
-        /// </summary>
+        /*
+            Asynchronously patch a dir with a DPF file.
+        */
         void patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context = nullptr);
 
-        /// <summary>
-        /// Get files packed inside a DPF file
-        /// </summary>
+        /*
+            Get files packed inside a DPF file.
+        */
         dpf_result get_files(const FILE_PATH& dpf_file, std::vector<std::string>& files);
 
-        /// <summary>
-        /// Get packed patch version
-        /// </summary>
+        /*
+            Get packed patch version.
+        */
         dpf_result get_patch_version(const FILE_PATH& dpf_file, uint64_t& version);
 
-        /// <summary>
-        /// Get unpacked patch version
-        /// </summary>
+        /*
+            Get unpacked patch version.
+        */
         dpf_result get_patch_version(const FILE_PATH& dpf_file, uint16_t& version_major, uint16_t& version_minor, uint16_t& version_rev);
 
-        /// <summary>
-        /// Check DPF file checksum
-        /// </summary>
+        /*
+            Check DPF file checksum.
+        */
         bool check_checksum(const FILE_PATH& dpf_file);
     };
 }

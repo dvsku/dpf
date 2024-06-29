@@ -1,24 +1,24 @@
 #pragma once
 
-#include "dpf_util_string.hpp"
+#include "utilities/string.hpp"
 
 #include <fstream>
 
-namespace dvsku::dpf {
-    class dpf_util_binr {
+namespace libdpf {
+    class binread {
     public:
-        dpf_util_binr()                     = delete;
-        dpf_util_binr(const dpf_util_binr&) = delete;
-        dpf_util_binr(dpf_util_binr&&)      = default;
+        binread()               = delete;
+        binread(const binread&) = delete;
+        binread(binread&&)      = default;
 
-        dpf_util_binr(std::ifstream& stream) : m_stream(stream) {
+        binread(std::ifstream& stream) : m_stream(stream) {
             seek(0, std::ios_base::end);
             m_size = pos();
             seek(0, std::ios_base::beg);
         }
 
-        dpf_util_binr& operator=(const dpf_util_binr&) = delete;
-        dpf_util_binr& operator=(dpf_util_binr&&)      = default;
+        binread& operator=(const binread&) = delete;
+        binread& operator=(binread&&)      = default;
 
     public:
         size_t pos() {

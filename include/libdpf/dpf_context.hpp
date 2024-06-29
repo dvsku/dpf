@@ -1,13 +1,13 @@
 #pragma once
 
-#include "dpf_result.hpp"
-#include "dpf_file_mod.hpp"
+#include "libdpf/misc/dpf_result.hpp"
+#include "libdpf/misc/dpf_file_mod.hpp"
 
 #include <functional>
 #include <vector>
 #include <atomic>
 
-namespace dvsku::dpf {
+namespace libdpf {
     /*
         dpf context object
 

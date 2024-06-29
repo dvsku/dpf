@@ -1,6 +1,6 @@
 #include "dpf_context_handle.hpp"
 
-using namespace dvsku::dpf;
+using namespace libdpf;
 
 dpf_context_handle::dpf_context_handle(dpf_context* context)
     : m_context(context) {}

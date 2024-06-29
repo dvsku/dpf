@@ -1,8 +1,8 @@
 #pragma once
 
-#include "dpf/dpf_context.hpp"
+#include "libdpf/dpf_context.hpp"
 
-namespace dvsku::dpf {
+namespace libdpf {
     class dpf_context_handle {
     public:
         dpf_context_handle() = delete;

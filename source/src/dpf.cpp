@@ -1,6 +1,6 @@
-#include "dpf.hpp"
-#include "dpf/dpf_context_handle.hpp"
-#include "utilities/dpf_util_binr.hpp"
+#include "libdpf/dpf.hpp"
+#include "misc/dpf_context_handle.hpp"
+#include "utilities/binread.hpp"
 
 #include <thread>
 #include <fstream>
@@ -9,7 +9,7 @@
 
 #define DPF_VERSION 0x0001
 
-using namespace dvsku::dpf;
+using namespace libdpf;
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
@@ -33,8 +33,8 @@ struct dpf_file_header {
 static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context_handle& context);
 static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context_handle& context);
 
-static dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header);
-static dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& header);
+static dpf_result internal_read_header(binread& binr, dpf_header& header);
+static dpf_result internal_read_file_header(binread& binr, dpf_file_header& header);
 
 static void internal_make_relative(dpf_file_mod& file_mod, const dpf::DIR_PATH& root);
 static bool internal_get_md5(const dpf::FILE_PATH dpf_file, unsigned char* md5);
@@ -49,8 +49,8 @@ bool dpf::is_dpf_file(const FILE_PATH& file) {
     if (!fin.is_open())
         return false;
 
-    dpf_header    header;
-    dpf_util_binr binr(fin);
+    dpf_header header;
+    binread    binr(fin);
 
     auto result = internal_read_header(binr, header);
 
@@ -64,14 +64,14 @@ dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_c
     }
     catch (const std::exception& e) {
         dpf_result result;
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = e.what();
 
         return result;
     }
     catch (...) {
         dpf_result result;
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = "Critical failure.";
 
         return result;
@@ -87,14 +87,14 @@ void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_c
         }
         catch (const std::exception& e) {
             dpf_result result;
-            result.status  = dpf_status::error;
+            result.status  = dpf_status::failure;
             result.message = e.what();
 
             context_handle.invoke_finish(result);
         }
         catch (...) {
             dpf_result result;
-            result.status  = dpf_status::error;
+            result.status  = dpf_status::failure;
             result.message = "Critical failure.";
 
             context_handle.invoke_finish(result);
@@ -110,14 +110,14 @@ dpf_result dpf::patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
     }
     catch (const std::exception& e) {
         dpf_result result;
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = e.what();
 
         return result;
     }
     catch (...) {
         dpf_result result;
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = "Critical failure.";
 
         return result;
@@ -133,14 +133,14 @@ void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
         }
         catch (const std::exception& e) {
             dpf_result result;
-            result.status  = dpf_status::error;
+            result.status  = dpf_status::failure;
             result.message = e.what();
 
             context_handle.invoke_finish(result);
         }
         catch (...) {
             dpf_result result;
-            result.status  = dpf_status::error;
+            result.status  = dpf_status::failure;
             result.message = "Critical failure.";
 
             context_handle.invoke_finish(result);
@@ -157,16 +157,16 @@ dpf_result dpf::get_files(const FILE_PATH& dpf_file, std::vector<std::string>& f
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open()) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
         return result;
     }
 
-    dpf_util_binr binr(fin);
+    binread binr(fin);
 
     result = internal_read_header(binr, header);
     if (result.status != dpf_status::ok) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
     }
@@ -193,16 +193,16 @@ dpf_result dpf::get_patch_version(const FILE_PATH& dpf_file, uint64_t& version) 
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open()) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
         return result;
     }
 
-    dpf_util_binr binr(fin);
+    binread binr(fin);
 
     result = internal_read_header(binr, header);
     if (result.status != dpf_status::ok) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
     }
@@ -241,7 +241,7 @@ bool dpf::check_checksum(const FILE_PATH& dpf_file) {
     char       checksum[16] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     {
-        dpf_util_binr binr(fin);
+        binread binr(fin);
 
         auto result = internal_read_header(binr, header);
         if (result.status != dpf_status::ok)
@@ -279,7 +279,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     fout.open(dpf_file, std::ios::binary);
 
     if (!fout.is_open()) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
         
         context.invoke_finish(result);
@@ -311,7 +311,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
             std::ifstream fin(input_file.path, std::ios::binary);
             
             if (!fin.is_open()) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to open input file `{}`.", input_file.path.string());
 
                 context.invoke_finish(result);
@@ -326,7 +326,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
             fin.read((char*)buffer.data(), (size_t)file_header.decompressed_size);
 
             if (fin.bad()) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to read input file `{}`.", input_file.path.string());
 
                 context.invoke_finish(result);
@@ -336,7 +336,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
 
         auto res = context.invoke_buf_process(input_file, buffer);
         if (res.status != dpf_status::ok) {
-            result.status  = dpf_status::error;
+            result.status  = dpf_status::failure;
             result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", input_file.path.string(), res.message);
 
             context.invoke_finish(result);
@@ -362,7 +362,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
                 static_cast<mz_ulong>(buffer.size()));
 
             if (code != MZ_OK) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to compress input file `{}`.", input_file.path.string());
 
                 context.invoke_finish(result);
@@ -400,7 +400,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     fstream.open(dpf_file, std::ios::binary | std::ios::in | std::ios::out);
 
     if (!fstream.is_open()) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
 
         context.invoke_finish(result);
@@ -425,18 +425,18 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
     fin.open(dpf_file, std::ios::binary);
 
     if (!fin.is_open()) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to open `{}` file.", dpf_file.string());
 
         context.invoke_finish(result);
         return result;
     }
 
-    dpf_util_binr binr(fin);
+    binread binr(fin);
     
     result = internal_read_header(binr, header);
     if (result.status != dpf_status::ok) {
-        result.status  = dpf_status::error;
+        result.status  = dpf_status::failure;
         result.message = DPF_FORMAT("Failed to parse `{}` header. | {}", dpf_file.string(), result.message);
         return result;
     }
@@ -462,7 +462,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
             std::ofstream fout(filename, std::ios::binary);
             if (!fout.is_open()) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to open `{}`.", filename.string());
 
                 context.invoke_finish(result);
@@ -475,7 +475,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
                 static_cast<mz_ulong>(file_header.compressed_size));
 
             if (code != MZ_OK || file_header.decompressed_size != real_decompressed_size) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to decompress `{}`.", filename.string());
 
                 context.invoke_finish(result);
@@ -488,7 +488,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
 
             auto res = context.invoke_buf_process(file_mod, decompressed_buffer);
             if (res.status != dpf_status::ok) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to process buffer of `{}`. | {}", filename.string(), res.message);
 
                 context.invoke_finish(result);
@@ -500,7 +500,7 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
         }
         else if (file_header.op == dpf_op::remove) {
             if (!std::filesystem::remove(filename)) {
-                result.status  = dpf_status::error;
+                result.status  = dpf_status::failure;
                 result.message = DPF_FORMAT("Failed to remove `{}`.", filename.string());
 
                 context.invoke_finish(result);
@@ -519,9 +519,9 @@ dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH pat
     return result;
 }
 
-dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
+dpf_result internal_read_header(binread& binr, dpf_header& header) {
     dpf_result result;
-    result.status = dpf_status::error;
+    result.status = dpf_status::failure;
     
     if (binr.size() < sizeof(header)) {
         result.message = "Header size mismatch.";
@@ -549,7 +549,7 @@ dpf_result internal_read_header(dpf_util_binr& binr, dpf_header& header) {
     return result;
 }
 
-dpf_result internal_read_file_header(dpf_util_binr& binr, dpf_file_header& header) {
+dpf_result internal_read_file_header(binread& binr, dpf_file_header& header) {
     dpf_result result;
 
     header.op             = binr.read_num<dpf_op>();
