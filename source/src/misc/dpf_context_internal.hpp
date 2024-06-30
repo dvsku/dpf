@@ -3,10 +3,10 @@
 #include "libdpf/dpf_context.hpp"
 
 namespace libdpf {
-    class dpf_context_handle {
+    class dpf_context_internal {
     public:
-        dpf_context_handle() = delete;
-        dpf_context_handle(dpf_context* context);
+        dpf_context_internal() = delete;
+        dpf_context_internal(dpf_context* context);
 
     public:
         void       invoke_start() const;

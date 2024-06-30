@@ -1,5 +1,5 @@
 #include "libdpf/dpf.hpp"
-#include "misc/dpf_context_handle.hpp"
+#include "misc/dpf_context_internal.hpp"
 #include "utilities/binread.hpp"
 
 #include <thread>
@@ -30,8 +30,8 @@ struct dpf_file_header {
     uint64_t    compressed_size   = 0U;
 };
 
-static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context_handle& context);
-static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context_handle& context);
+static dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context_internal& context);
+static dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context_internal& context);
 
 static dpf_result internal_read_header(binread& binr, dpf_header& header);
 static dpf_result internal_read_file_header(binread& binr, dpf_file_header& header);
@@ -59,8 +59,8 @@ bool dpf::is_dpf_file(const FILE_PATH& file) {
 
 dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
     try {
-        dpf_context_handle context_handle(context);
-        return internal_create(input_files, dpf_file, context_handle);
+        dpf_context_internal context_internal(context);
+        return internal_create(input_files, dpf_file, context_internal);
     }
     catch (const std::exception& e) {
         dpf_result result;
@@ -80,24 +80,24 @@ dpf_result dpf::create(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_c
 
 void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_context* context) {
     std::thread t([input_files, dpf_file, context] {
-        dpf_context_handle context_handle(context);
+        dpf_context_internal context_internal(context);
 
         try {
-            internal_create(input_files, dpf_file, context_handle);
+            internal_create(input_files, dpf_file, context_internal);
         }
         catch (const std::exception& e) {
             dpf_result result;
             result.status  = dpf_status::failure;
             result.message = e.what();
 
-            context_handle.invoke_finish(result);
+            context_internal.invoke_finish(result);
         }
         catch (...) {
             dpf_result result;
             result.status  = dpf_status::failure;
             result.message = "Critical failure.";
 
-            context_handle.invoke_finish(result);
+            context_internal.invoke_finish(result);
         }
     });
     t.detach();
@@ -105,8 +105,8 @@ void dpf::create_async(dpf_inputs& input_files, const FILE_PATH& dpf_file, dpf_c
 
 dpf_result dpf::patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context) {
     try {
-        dpf_context_handle context_handle(context);
-        return internal_patch(dpf_file, patch_dir, context_handle);
+        dpf_context_internal context_internal(context);
+        return internal_patch(dpf_file, patch_dir, context_internal);
     }
     catch (const std::exception& e) {
         dpf_result result;
@@ -126,24 +126,24 @@ dpf_result dpf::patch(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_
 
 void dpf::patch_async(const FILE_PATH& dpf_file, const DIR_PATH& patch_dir, dpf_context* context) {
     std::thread t([dpf_file, patch_dir, context] {
-        dpf_context_handle context_handle(context);
+        dpf_context_internal context_internal(context);
 
         try {
-            internal_patch(dpf_file, patch_dir, context_handle);
+            internal_patch(dpf_file, patch_dir, context_internal);
         }
         catch (const std::exception& e) {
             dpf_result result;
             result.status  = dpf_status::failure;
             result.message = e.what();
 
-            context_handle.invoke_finish(result);
+            context_internal.invoke_finish(result);
         }
         catch (...) {
             dpf_result result;
             result.status  = dpf_status::failure;
             result.message = "Critical failure.";
 
-            context_handle.invoke_finish(result);
+            context_internal.invoke_finish(result);
         }
     });
     t.detach();
@@ -264,7 +264,7 @@ bool dpf::check_checksum(const FILE_PATH& dpf_file) {
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL IMPL
 
-dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context_handle& context) {
+dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file, dpf_context_internal& context) {
     dpf_result result;
     
     dpf_header header;
@@ -417,7 +417,7 @@ dpf_result internal_create(dpf_inputs input_files, const dpf::FILE_PATH dpf_file
     return result;
 }
 
-dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context_handle& context) {
+dpf_result internal_patch(const dpf::FILE_PATH dpf_file, const dpf::DIR_PATH patch_dir, dpf_context_internal& context) {
     dpf_result result;
     dpf_header header;
 
