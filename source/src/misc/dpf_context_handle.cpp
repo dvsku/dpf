@@ -6,17 +6,17 @@ dpf_context_handle::dpf_context_handle(dpf_context* context)
     : m_context(context) {}
 
 void dpf_context_handle::invoke_start() const {
-    if (m_context)
+    if (m_context && m_context->start_callback)
         m_context->start_callback();
 }
 
 void dpf_context_handle::invoke_finish(dpf_result& result) const {
-    if (m_context)
+    if (m_context && m_context->finish_callback)
         m_context->finish_callback(result);
 }
 
 void dpf_context_handle::invoke_update(float change) const {
-    if (m_context)
+    if (m_context && m_context->update_callback)
         m_context->update_callback(change);
 }
 
